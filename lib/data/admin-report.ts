@@ -110,18 +110,41 @@ export async function getLunchReport({
     reservations = result.data ?? [];
   }
 
-  const [weeklyResult, overridesResult] = await Promise.all([
+  const [weeklyResult, overridesResult, settingsResult] = await Promise.all([
     supabase.from("weekly_menu").select("weekday, main_dish, is_enabled"),
     supabase
       .from("menu_overrides")
       .select("service_date, main_dish, is_closed")
       .gte("service_date", firstIso)
       .lte("service_date", lastIso),
+    supabase
+      .from("app_settings")
+      .select("price_per_day_irt")
+      .eq("id", 1)
+      .maybeSingle(),
   ]);
 
   const firstError = weeklyResult.error ?? overridesResult.error;
   if (firstError) {
     throw new Error(`Failed to load lunch report: ${firstError.message}`);
+  }
+
+  const dailyPrice = settingsResult.data?.price_per_day_irt ?? 100_000;
+
+  // Guests have no department, so they only belong in the global report.
+  let guests: { service_date: string; price_irt: number }[] = [];
+  if (isGlobal) {
+    const result = await supabase
+      .from("lunch_guests")
+      .select("service_date, price_irt")
+      .gte("service_date", firstIso)
+      .lte("service_date", lastIso);
+
+    if (!result.error) {
+      guests = result.data ?? [];
+    } else if (result.error.code !== "42P01") {
+      throw new Error(`Failed to load lunch report: ${result.error.message}`);
+    }
   }
 
   const byDate = new Map<string, { count: number; cost: number }>();
@@ -143,6 +166,19 @@ export async function getLunchReport({
     employeeEntry.days += 1;
     employeeEntry.cost += reservation.price_irt;
     byEmployee.set(reservation.user_id, employeeEntry);
+  }
+
+  let guestCost = 0;
+  for (const guest of guests) {
+    const cost = guest.price_irt || dailyPrice;
+    guestCost += cost;
+    const dateEntry = byDate.get(guest.service_date) ?? {
+      count: 0,
+      cost: 0,
+    };
+    dateEntry.count += 1;
+    dateEntry.cost += cost;
+    byDate.set(guest.service_date, dateEntry);
   }
 
   const weeklyDishes = new Map<number, string>();
@@ -198,8 +234,9 @@ export async function getLunchReport({
     year,
     month,
     monthTitle: getPersianMonthYearTitle(year, month),
-    totalReservations: reservations.length,
-    totalCost: reservations.reduce((sum, row) => sum + row.price_irt, 0),
+    totalReservations: reservations.length + guests.length,
+    totalCost:
+      reservations.reduce((sum, row) => sum + row.price_irt, 0) + guestCost,
     distinctEmployees: byEmployee.size,
     activeProfiles: profiles.filter((profile) => profile.is_active).length,
     perDay,

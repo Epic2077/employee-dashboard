@@ -157,6 +157,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      lunch_guests: {
+        Row: {
+          id: string;
+          service_date: string;
+          name: string;
+          note: string | null;
+          price_irt: number;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          service_date: string;
+          name: string;
+          note?: string | null;
+          price_irt?: number;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          service_date?: string;
+          name?: string;
+          note?: string | null;
+          price_irt?: number;
+        };
+        Relationships: [];
+      };
       services: {
         Row: {
           id: string;

@@ -11,7 +11,7 @@ import {
   listInbounds,
   newClientId,
   newSubId,
-  removeClient,
+  removeClientByEmail,
   type XuiClientPayload,
 } from "@/lib/v2ray/xui";
 
@@ -130,6 +130,7 @@ export async function provisionConfig({
   try {
     inbounds = await listInbounds();
   } catch (error) {
+    console.error("[digital] listInbounds failed", error);
     return {
       ok: false,
       message: `اتصال به پنل انجام نشد: ${
@@ -178,27 +179,21 @@ export async function provisionConfig({
     flow: "",
   };
 
-  const added: number[] = [];
-  for (const inboundId of inboundIds) {
-    try {
-      await addClient(inboundId, client);
-      added.push(inboundId);
-    } catch (error) {
-      // Roll back whatever already went through.
-      for (const rollbackId of added) {
-        try {
-          await removeClient(rollbackId, client.id);
-        } catch {
-          // best effort
-        }
-      }
-      return {
-        ok: false,
-        message: `ساخت کلاینت روی نود ${inboundId} انجام نشد: ${
-          error instanceof Error ? error.message : "خطای نامشخص"
-        }`,
-      };
-    }
+  try {
+    await addClient(inboundIds, client);
+  } catch (error) {
+    console.error("[digital] addClient failed", {
+      inboundIds,
+      email: client.email,
+      subId: client.subId,
+      error,
+    });
+    return {
+      ok: false,
+      message: `ساخت کلاینت روی نودهای ${inboundIds.join("، ")} انجام نشد: ${
+        error instanceof Error ? error.message : "خطای نامشخص"
+      }`,
+    };
   }
 
   const { data, error } = await admin
@@ -209,19 +204,20 @@ export async function provisionConfig({
       client_id: client.id,
       sub_id: client.subId,
       email,
-      inbound_ids: added,
+      inbound_ids: inboundIds,
       created_by: actor.userId,
     })
     .select("id")
     .single();
 
   if (error) {
-    for (const rollbackId of added) {
-      try {
-        await removeClient(rollbackId, client.id);
-      } catch {
-        // best effort
-      }
+    try {
+      await removeClientByEmail(email, {
+        clientId: client.id,
+        inboundIds,
+      });
+    } catch {
+      // best effort
     }
 
     return { ok: false, message: "ثبت کانفیگ در دیتابیس انجام نشد." };
@@ -237,7 +233,7 @@ export async function revokeConfigById(
   const admin = createAdminClient();
   const { data: config, error } = await admin
     .from("v2ray_configs")
-    .select("id, client_id, inbound_ids, status")
+    .select("id, client_id, sub_id, email, inbound_ids, status")
     .eq("id", configId)
     .maybeSingle();
 
@@ -249,20 +245,21 @@ export async function revokeConfigById(
   }
 
   if (isXuiConfigured()) {
-    for (const inboundId of config.inbound_ids ?? []) {
-      try {
-        await removeClient(inboundId, config.client_id);
-      } catch (panelError) {
-        await admin
-          .from("v2ray_configs")
-          .update({
-            error_message:
-              panelError instanceof Error
-                ? panelError.message
-                : "xui_delete_failed",
-          })
-          .eq("id", config.id);
-      }
+    try {
+      await removeClientByEmail(config.email, {
+        clientId: config.client_id,
+        inboundIds: config.inbound_ids ?? [],
+      });
+    } catch (panelError) {
+      await admin
+        .from("v2ray_configs")
+        .update({
+          error_message:
+            panelError instanceof Error
+              ? panelError.message
+              : "xui_delete_failed",
+        })
+        .eq("id", config.id);
     }
   }
 

@@ -80,3 +80,74 @@ export async function setDailyReservation(
     ok: action === "reserve" ? "رزرو ثبت شد." : "رزرو لغو شد.",
   };
 }
+
+/** Add a guest (a person without an account) to a day's lunch list. */
+export async function addDailyGuest(
+  _state: AdminFormState,
+  formData: FormData,
+): Promise<AdminFormState> {
+  await requireFullCapability("lunch.manage");
+
+  const date = field(formData, "date", 10);
+  const name = field(formData, "name", 80);
+  const note = field(formData, "note", 80) || null;
+
+  if (!ISO_DATE.test(date)) {
+    return { error: "درخواست نامعتبر است." };
+  }
+  if (!name) {
+    return { error: "نام مهمان را وارد کنید." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("lunch_guests")
+    .insert({ service_date: date, name, note });
+
+  if (error) {
+    console.error("addDailyGuest insert failed", error);
+    if (error.code === "23505") {
+      return { error: "این مهمان قبلاً برای این روز ثبت شده است." };
+    }
+    if (
+      error.code === "42501" ||
+      error.message.includes("row-level security")
+    ) {
+      return { error: "امکان افزودن مهمان برای این روز وجود ندارد." };
+    }
+    if (error.code === "42P01") {
+      return {
+        error: "جدول مهمان‌ها آماده نیست؛ ابتدا مهاجرت‌ها را اجرا کنید.",
+      };
+    }
+    return { error: "افزودن مهمان انجام نشد. دوباره تلاش کنید." };
+  }
+
+  refresh();
+  return { ok: `مهمان «${name}» به این روز اضافه شد.` };
+}
+
+/** Remove a guest from a day's lunch list. */
+export async function removeDailyGuest(
+  _state: AdminFormState,
+  formData: FormData,
+): Promise<AdminFormState> {
+  await requireFullCapability("lunch.manage");
+
+  const id = field(formData, "id", 40);
+
+  if (!id) {
+    return { error: "درخواست نامعتبر است." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("lunch_guests").delete().eq("id", id);
+
+  if (error) {
+    console.error("removeDailyGuest delete failed", error);
+    return { error: "حذف مهمان انجام نشد. دوباره تلاش کنید." };
+  }
+
+  refresh();
+  return { ok: "مهمان حذف شد." };
+}

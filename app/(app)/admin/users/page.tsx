@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
+import { DownloadIcon } from "lucide-react";
 
 import { AdminForm } from "@/components/admin/admin-form";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
+import { CopyCredentials } from "@/components/admin/copy-credentials";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { adminFieldClass } from "@/lib/admin/styles";
@@ -64,6 +66,22 @@ async function UsersView({ searchParams }: { searchParams: SearchParams }) {
   });
   const hasFilters = Boolean(filters.q || filters.role || filters.department);
 
+  const exportParams = new URLSearchParams();
+  if (filters.role) exportParams.set("role", filters.role);
+  if (filters.department) exportParams.set("department", filters.department);
+  if (filters.q) exportParams.set("q", filters.q);
+  const exportQuery = exportParams.toString();
+  const exportHref = `/admin/users/export${exportQuery ? `?${exportQuery}` : ""}`;
+
+  const credentialsText = [
+    "فهرست کاربران و رمز عبور اولیه (رمز = کد پرسنلی)",
+    "",
+    ...users.map(
+      (user, index) =>
+        `${index + 1}) ${user.fullName} — نام کاربری: ${user.username} — رمز عبور: ${user.employeeCode ?? "—"}`,
+    ),
+  ].join("\n");
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
@@ -75,9 +93,23 @@ async function UsersView({ searchParams }: { searchParams: SearchParams }) {
               : "فهرست کارکنانی که به آن‌ها دسترسی دارید (فقط‌خواندنی)."}
           </p>
         </div>
-        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-          نقش شما: {ROLE_LABELS[actorRole]}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+            نقش شما: {ROLE_LABELS[actorRole]}
+          </span>
+          {users.length > 0 ? (
+            <>
+              <CopyCredentials text={credentialsText} />
+              <a
+                href={exportHref}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-3 text-xs font-medium hover:bg-muted"
+              >
+                <DownloadIcon className="size-3.5" />
+                خروجی اکسل
+              </a>
+            </>
+          ) : null}
+        </div>
       </div>
 
       <datalist id="department-options">

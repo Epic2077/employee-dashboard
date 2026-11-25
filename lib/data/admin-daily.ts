@@ -26,6 +26,13 @@ export type DailyEmployee = {
   priceIrt: number | null;
 };
 
+export type DailyGuest = {
+  id: string;
+  name: string;
+  note: string | null;
+  priceIrt: number | null;
+};
+
 export type DailyOption = {
   isoDate: string;
   label: string;
@@ -37,6 +44,8 @@ export type DailyOption = {
 
 export type DailyList = {
   isoDate: string;
+  /** Today in Tehran, so the UI can highlight the current day. */
+  todayIso: string;
   label: string;
   weekdayName: string;
   dish: string | null;
@@ -45,6 +54,8 @@ export type DailyList = {
   scope: Scope;
   priceIrt: number;
   employees: DailyEmployee[];
+  guests: DailyGuest[];
+  /** Employees with a reservation plus every guest (guests always eat). */
   reserved: number;
   totalCost: number;
   options: DailyOption[];
@@ -86,7 +97,7 @@ export async function getDailyList({
   const [settingsResult, profiles, weeklyResult] = await Promise.all([
     supabase
       .from("app_settings")
-      .select("price_per_day_irt, min_lead_days, max_advance_days")
+      .select("price_per_day_irt, max_advance_days")
       .eq("id", 1)
       .maybeSingle(),
     fetchScopedProfiles(supabase),
@@ -94,10 +105,11 @@ export async function getDailyList({
   ]);
 
   const settings = settingsResult.data;
-  const minLead = settings?.min_lead_days ?? 1;
   const maxAdvance = settings?.max_advance_days ?? 14;
   const priceIrt = settings?.price_per_day_irt ?? 100_000;
-  const windowStart = addDaysToIsoDate(todayIso, minLead);
+  // The lunch manager works on the current day's list, so today is part of the
+  // window even though employees may only book from tomorrow (min_lead_days).
+  const windowStart = todayIso;
   const windowEnd = addDaysToIsoDate(todayIso, maxAdvance);
 
   const overridesResult = await supabase
@@ -164,6 +176,23 @@ export async function getDailyList({
     : (reservationsResult.data ?? []);
   const byUser = new Map(reservations.map((row) => [row.user_id, row]));
 
+  const guestsResult = await supabase
+    .from("lunch_guests")
+    .select("id, name, note, price_irt")
+    .eq("service_date", isoDate)
+    .order("created_at", { ascending: true });
+
+  // Missing table just means the guests migration is not applied yet.
+  const guests: DailyGuest[] =
+    guestsResult.error?.code === "42P01"
+      ? []
+      : (guestsResult.data ?? []).map((row) => ({
+          id: row.id,
+          name: row.name,
+          note: row.note,
+          priceIrt: row.price_irt || null,
+        }));
+
   const employees: DailyEmployee[] = visibleProfiles
     .map((profile) => {
       const reservation = byUser.get(profile.id);
@@ -186,8 +215,14 @@ export async function getDailyList({
 
   const reserved = employees.filter((employee) => employee.reservationId);
 
+  const guestCost = guests.reduce(
+    (sum, guest) => sum + (guest.priceIrt ?? priceIrt),
+    0,
+  );
+
   return {
     isoDate,
+    todayIso,
     label: selected?.label ?? persianLabel(isoDate),
     weekdayName: selected?.weekdayName ?? "",
     dish: selected?.dish ?? null,
@@ -196,11 +231,13 @@ export async function getDailyList({
     scope,
     priceIrt,
     employees,
-    reserved: reserved.length,
-    totalCost: reserved.reduce(
-      (sum, employee) => sum + (employee.priceIrt ?? priceIrt),
-      0,
-    ),
+    guests,
+    reserved: reserved.length + guests.length,
+    totalCost:
+      reserved.reduce(
+        (sum, employee) => sum + (employee.priceIrt ?? priceIrt),
+        0,
+      ) + guestCost,
     options,
   };
 }

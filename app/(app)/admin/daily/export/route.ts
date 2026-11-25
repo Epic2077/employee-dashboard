@@ -56,6 +56,20 @@ export async function GET(request: Request) {
     );
   });
 
+  list.guests.forEach((guest, index) => {
+    lines.push(
+      [
+        csvCell(list.employees.length + index + 1),
+        csvCell(guest.note ? `${guest.name} (${guest.note})` : guest.name),
+        csvCell("—"),
+        csvCell("—"),
+        csvCell("مهمان"),
+        csvCell("رزرو شده"),
+        csvCell(guest.priceIrt ?? list.priceIrt),
+      ].join(","),
+    );
+  });
+
   lines.push("");
   lines.push(
     [
