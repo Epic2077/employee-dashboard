@@ -19,10 +19,12 @@ import {
   shiftPersianMonth,
 } from "@/components/shared/persian-calendar";
 import { Input } from "@/components/ui/input";
+import { adminFieldClass } from "@/lib/admin/styles";
 import { getMyAccess } from "@/lib/auth/permissions";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import type { ServiceSummaryRow } from "@/lib/data/admin-services";
 import { getServicesReport } from "@/lib/data/admin-services";
+import { getCategories } from "@/lib/data/categories";
 import { cn } from "@/lib/utils";
 
 import { deleteService, saveService } from "./actions";
@@ -59,7 +61,7 @@ async function ServicesView({ searchParams }: { searchParams: SearchParams }) {
   await connection();
 
   const access = await getMyAccess();
-  const canEdit = access.scopes["services.manage"] === "all";
+  const canEdit = access.hasAccess("services.manage");
 
   const params = await searchParams;
   const today = getTodayPersianParts();
@@ -67,7 +69,13 @@ async function ServicesView({ searchParams }: { searchParams: SearchParams }) {
   const month = parseMonth(params.m) ?? today.month;
   const department = typeof params.d === "string" ? params.d : null;
 
-  const report = await getServicesReport({ year, month, department });
+  const [report, categories] = await Promise.all([
+    getServicesReport({ year, month, department }),
+    getCategories(),
+  ]);
+  const serviceCategories = categories.filter(
+    (category) => category.module === "services",
+  );
   const prev = shiftPersianMonth(year, month, -1);
   const next = shiftPersianMonth(year, month, 1);
   const departmentQuery = report.department
@@ -266,7 +274,7 @@ async function ServicesView({ searchParams }: { searchParams: SearchParams }) {
                   size="sm"
                   className="space-y-3"
                 >
-                  <ServiceFields />
+                  <ServiceFields categories={serviceCategories} />
                 </AdminForm>
               </div>
 
@@ -301,7 +309,10 @@ async function ServicesView({ searchParams }: { searchParams: SearchParams }) {
                             name="service_id"
                             value={service.id}
                           />
-                          <ServiceFields service={service} />
+                          <ServiceFields
+                            service={service}
+                            categories={serviceCategories}
+                          />
                         </AdminForm>
 
                         <div className="mt-3 border-t pt-3">
@@ -456,7 +467,13 @@ async function ServicesView({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-function ServiceFields({ service }: { service?: ServiceSummaryRow }) {
+function ServiceFields({
+  service,
+  categories,
+}: {
+  service?: ServiceSummaryRow;
+  categories: { id: string; name: string }[];
+}) {
   return (
     <>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -522,6 +539,21 @@ function ServiceFields({ service }: { service?: ServiceSummaryRow }) {
             defaultValue={service?.sortOrder ?? 0}
             className="text-left tabular-nums"
           />
+        </label>
+        <label className="space-y-1 text-xs">
+          <span className="text-muted-foreground">دسته محتوا</span>
+          <select
+            name="category_id"
+            defaultValue={service?.categoryId ?? ""}
+            className={adminFieldClass}
+          >
+            <option value="">بدون دسته</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 

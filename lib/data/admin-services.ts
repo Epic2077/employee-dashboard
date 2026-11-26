@@ -26,6 +26,7 @@ export type ServiceSummaryRow = {
   name: string;
   description: string | null;
   unitLabel: string;
+  categoryId: string | null;
   priceIrt: number;
   maxPerDay: number;
   isActive: boolean;
@@ -94,7 +95,7 @@ export async function getServicesReport({
     supabase
       .from("services")
       .select(
-        "id, slug, name, unit_label, description, price_irt, max_per_day, is_active, sort_order",
+        "id, slug, name, unit_label, description, price_irt, max_per_day, is_active, sort_order, category_id",
       )
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
@@ -211,6 +212,7 @@ export async function getServicesReport({
       name: service.name,
       description: service.description,
       unitLabel: service.unit_label,
+      categoryId: service.category_id,
       priceIrt: service.price_irt,
       maxPerDay: service.max_per_day,
       isActive: service.is_active,

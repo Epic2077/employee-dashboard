@@ -112,6 +112,7 @@ export function effectiveQuota(
 
 /** The «کانفیگ» tab for the signed-in user. */
 export async function getMyDigitalTab(): Promise<DigitalTabData> {
+  await requireCapability("config.view");
   const profile = await getCurrentProfile();
   const access = await getMyAccess();
   const { settings, available } = await readSettings();

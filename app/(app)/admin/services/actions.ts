@@ -42,6 +42,7 @@ export async function saveService(
   const maxPerDay = Number(formData.get("max_per_day"));
   const sortOrder = Number(formData.get("sort_order") ?? 0);
   const isActive = formData.get("is_active") === "on";
+  const categoryId = field(formData, "category_id", 40);
 
   if (name.length < 2) {
     return { error: "نام سرویس باید حداقل ۲ کاراکتر باشد." };
@@ -62,6 +63,20 @@ export async function saveService(
     return { error: "سقف روزانه باید بین ۱ تا ۲۰ باشد." };
   }
 
+  const supabase = await createClient();
+
+  if (categoryId) {
+    const { data: category } = await supabase
+      .from("access_categories")
+      .select("id, module")
+      .eq("id", categoryId)
+      .maybeSingle();
+
+    if (!category || category.module !== "services") {
+      return { error: "دسته انتخاب‌شده برای سرویس‌ها معتبر نیست." };
+    }
+  }
+
   const payload: ServicePayload = {
     slug,
     name,
@@ -71,9 +86,9 @@ export async function saveService(
     max_per_day: maxPerDay,
     is_active: isActive,
     sort_order: Number.isFinite(sortOrder) ? Math.trunc(sortOrder) : 0,
+    category_id: categoryId || null,
   };
 
-  const supabase = await createClient();
   const { error } = id
     ? await supabase.from("services").update(payload).eq("id", id)
     : await supabase.from("services").insert(payload);

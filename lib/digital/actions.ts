@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import type { AdminFormState } from "@/lib/admin/types";
-import { getMyAccess } from "@/lib/auth/permissions";
-import { requireUser } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/auth/permissions";
 import { provisionConfig } from "@/lib/digital/provision";
 
 /** Employee self-service: create the config allowed by their quota. */
@@ -14,9 +13,7 @@ export async function createMyConfig(
 ): Promise<AdminFormState> {
   // The employee form carries no fields; submitting it is the whole request.
   void formData;
-  await requireUser();
-
-  const access = await getMyAccess();
+  const access = await requireCapability("config.view");
   const result = await provisionConfig({
     actor: access,
     targetUserId: access.userId,

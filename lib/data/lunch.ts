@@ -8,7 +8,7 @@ import {
   toIsoServiceDate,
   type DailyMeal,
 } from "@/components/shared/persian-calendar";
-import { requireUser } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/auth/permissions";
 import type { LunchMonthData } from "@/lib/lunch/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,7 +33,7 @@ export async function getLunchMonth({
   year: number;
   month: number;
 }): Promise<LunchMonthData> {
-  const claims = await requireUser();
+  const access = await requireCapability("lunch.view");
   const supabase = await createClient();
 
   const firstIso = toIsoServiceDate(year, month, 1);
@@ -61,7 +61,7 @@ export async function getLunchMonth({
       supabase
         .from("lunch_reservations")
         .select("service_date")
-        .eq("user_id", claims.sub)
+        .eq("user_id", access.userId)
         .gte("service_date", firstIso)
         .lte("service_date", lastIso),
     ]);

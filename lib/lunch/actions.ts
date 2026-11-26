@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireUser } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 
 export type ReservationActionResult =
@@ -33,12 +33,12 @@ export async function toggleReservation(input: {
     return { ok: false, message: "تاریخ انتخاب‌شده معتبر نیست." };
   }
 
-  const claims = await requireUser();
+  const access = await requireCapability("lunch.view");
   const supabase = await createClient();
 
   if (input.reserve) {
     const { error } = await supabase.from("lunch_reservations").insert({
-      user_id: claims.sub,
+      user_id: access.userId,
       service_date: input.serviceDate,
     });
 
@@ -49,7 +49,7 @@ export async function toggleReservation(input: {
     const { error } = await supabase
       .from("lunch_reservations")
       .delete()
-      .eq("user_id", claims.sub)
+      .eq("user_id", access.userId)
       .eq("service_date", input.serviceDate);
 
     if (error) {

@@ -4,6 +4,8 @@ export type ServiceItem = {
   name: string;
   unitLabel: string;
   description: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
   priceIrt: number;
   maxPerDay: number;
   /** Quantity ordered by the current user today. */

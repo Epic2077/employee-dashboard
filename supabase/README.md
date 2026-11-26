@@ -55,6 +55,11 @@ Order matters:
    food on behalf of an employee
 10. `*_digital_configs.sql` — V2Ray configs, quotas and panel settings
     (`digital.manage`)
+11. `*_layered_access_and_categories.sql` — replaces `role_permissions` with
+    `access_grants` (roles, teams, team managers, people), adds the shared
+    `access_categories` registry and wires category-aware services + lunch
+12. `*_access_deny_precedence.sql` — final resolver functions: grants widen,
+    team/manager denies narrow, person exceptions stay final
 
 ## 3. Create employee accounts
 
@@ -84,45 +89,94 @@ password change on next login.
 
 ## 4. Roles
 
-| role       | default access                                          |
-| ---------- | ------------------------------------------------------- |
-| `employee` | menu + own reservations and service orders              |
-| `manager`  | + team reports and team directory (`scope = team`)      |
-| `ceo`      | + read-only reports and user list for the whole company |
-| `admin`    | + `/admin/menu`, `/admin/services` and the day list     |
-| `owner`    | everything, including users and the permission matrix   |
+| role       | default access                                                |
+| ---------- | ------------------------------------------------------------- |
+| `employee` | lunch, services, config and directory sections + own records   |
+| `manager`  | + team reports, team activity and team user list (`team`)      |
+| `ceo`      | + read-only reports and user list for the whole company       |
+| `admin`    | + `/admin/menu`, `/admin/services` and the day list           |
+| `owner`    | everything, including users and the access console            |
 
 Authorization lives in `auth.users.raw_app_meta_data.role` (mirrored on
 `profiles.role`). Only the service role can change it, which is why role
 assignment runs through a server action rather than RLS.
 
-### Permission matrix (`role_permissions`)
+### Layered access (`access_grants`)
 
-Scopes are `none | self | team | all`. The owner edits the matrix on
-`/admin/permissions`; `owner` is always `all` and is not stored per cell.
+Scopes are `none | self | team | all`. Access resolves four layers, in order:
 
-| capability           | employee | manager | ceo  | admin | owner |
-| -------------------- | -------- | ------- | ---- | ----- | ----- |
-| `reports.lunch`      | none     | team    | all  | all   | all   |
-| `reports.services`   | none     | team    | all  | all   | all   |
-| `users.view`         | none     | team    | all  | none  | all   |
-| `menu.manage`        | none     | none    | none | all   | all   |
-| `lunch.manage`       | none     | none    | none | all   | all   |
-| `services.manage`    | none     | none    | none | all   | all   |
-| `digital.manage`     | none     | team    | none | all   | all   |
-| `users.manage`       | none     | none    | none | none  | all   |
-| `permissions.manage` | none     | none    | none | none  | all   |
-| `teams.manage`       | none     | none    | none | none  | all   |
+```
+role grant ──▶ team grants ──▶ team-manager grants ──▶ person exception
+```
 
-Manage capabilities (`menu.manage`, `lunch.manage`, `services.manage`,
-`users.manage`, `permissions.manage`, `teams.manage`) accept only `none` or
-`all`; `reports.*` and `digital.manage` can also be `team`.
+- **Role** — the matrix on `/admin/permissions` (base for everyone with that role).
+- **Team** — grants for the team a person belongs to (`profiles.department_id`).
+- **Team manager** — grants for the team(s) where `departments.manager_id = user`.
+  Being assigned as a manager is enough; the profile role can stay `employee`.
+  New teams are seeded with the current `manager` role grants (and existing
+  teams without manager grants are backfilled), so a new manager immediately
+  gets team reports and team activity. The owner can then edit or deny them.
+- **Person** — an explicit exception. `mode = 'grant'` sets the scope (can widen
+  or narrow), `mode = 'deny'` forces `none`.
 
-SQL helpers: `capability_scope(cap)`, `has_capability(cap)`,
-`has_full_capability(cap)`, `managed_department_ids()` and
-`can_view_user(user_id, cap)`. The app mirrors the same defaults in
-`lib/auth/scopes.ts`, so everything keeps working before this migration is
-applied.
+Grants in the first three layers widen the result (widest scope wins). A
+`deny` in a team or team-manager layer **overrides** the broader result, which is
+how a team or its manager can be restricted below the role default. The person
+exception is checked last and can allow or deny. Owners always resolve to `all`
+and cannot be locked out.
+
+Default role matrix (owner is always `all`):
+
+| capability | employee | manager | ceo | admin |
+| --- | --- | --- | --- | --- |
+| `lunch.view` / `services.view` / `config.view` / `directory.view` | all | all | all | all |
+| `reports.lunch` / `reports.services` | none | team | all | all |
+| `team.activity` | none | team | all | all |
+| `users.view` | none | team | all | none |
+| `menu.manage` / `lunch.manage` / `services.manage` | none | none | none | all |
+| `digital.manage` | none | team | none | all |
+| `users.manage` / `permissions.manage` / `teams.manage` | none | none | none | none |
+
+Category-aware capabilities (`lunch.view`, `menu.manage`, `reports.lunch`,
+`services.view`, `services.manage`, `reports.services`) accept an extra
+`category_id`.
+
+Management pages (owner only by default):
+
+| page | what it edits |
+| --- | --- |
+| `/admin/permissions` | role matrix + category registry |
+| `/admin/permissions/teams/[id]` | team settings, member grants, manager grants, per-category allow/deny |
+| `/admin/permissions/people/[id]` | person exceptions and the effective-access preview |
+
+SQL helpers: `effective_scope(cap, category_id, user_id)`,
+`capability_scope(cap)`, `category_scope(cap, category_id)`,
+`has_capability(cap)`, `has_full_capability(cap)` (all policy-facing),
+`my_effective_access()`, `effective_access_for(user_id)`,
+`team_department_ids()`, `can_view_user(user_id, cap)`, `can_view_service`,
+`can_order_service` and `lunch_day_category(date)`. The app mirrors the
+defaults in `lib/auth/scopes.ts`, so everything keeps working before this
+migration is applied.
+
+### Data categories (`access_categories`)
+
+Categories live in one registry (`module`, `slug`, `name`, `sort_order`,
+`is_active`) and are referenced from `services.category_id`,
+`weekly_menu.category_id` and `menu_overrides.category_id`. A missing category
+grant means “follow the capability scope”; a category grant/deny overrides it
+for that row. RLS enforces the result for listing, ordering, booking and
+reports.
+
+Adding a category-aware module later:
+
+1. Add a `category_id uuid references public.access_categories (id)` column to
+   the module's table.
+2. Add the module key to `lib/auth/scopes.ts` (`CATEGORY_MODULES` and
+   `CATEGORY_MODULE_LABELS`), and insert the module's capabilities into
+   `access_capabilities` with `category_module = '<module>'`.
+3. Gate reads/writes with `public.category_scope('<capability>', category_id)`
+   (or `can_view_category`); the owner console picks the new module up
+   automatically.
 
 ### Teams (`departments`)
 
@@ -253,16 +307,52 @@ select public.can_reserve(current_date + 15);     -- false
 select * from pg_policies where schemaname = 'public';
 ```
 
+Layered access checks (run in the SQL editor as `postgres`; replace the ids):
+
+```sql
+-- effective scope for a specific person (owner bypass, role, team, manager, person)
+select public.effective_scope('reports.lunch', null, '<user-uuid>');
+select public.effective_scope('services.view', '<category-uuid>', '<user-uuid>');
+
+-- person exception beats a team deny
+insert into public.access_grants (subject_type, user_id, capability, mode, scope)
+values ('user', '<user-uuid>', 'lunch.view', 'deny', 'none');
+
+-- team deny narrows the role baseline
+insert into public.access_grants
+  (subject_type, department_id, capability, mode, scope)
+values ('team', '<team-uuid>', 'services.view', 'deny', 'none');
+
+-- owner is always all
+select public.effective_scope('permissions.manage', null, '<owner-uuid>');
+```
+
+Also confirm the seeded defaults survived the migration:
+
+```sql
+select role, capability, scope
+from public.access_grants
+where subject_type = 'role' and role = 'manager'
+order by capability;
+```
+
 ## Notes
 
 - Authorization uses `app_metadata.role`, never `user_metadata` (user editable).
 - Profile and reservation reads are scoped by `can_view_user`: everyone sees
-  their own rows, managers see their team, the CEO and admins see everything.
+  their own rows, a `team` scope covers the teams the user manages **and** their
+  own team, and `all` covers the whole company.
 - Service orders follow the same scoping, so the reports can aggregate while
-  each employee only sees their own orders.
+  each employee only sees their own orders. A denied category is filtered in
+  both the catalogue and the reports.
+- Role changes still require a new sign-in (JWT claims are cached), while team
+  membership, team grants and person exceptions apply on the next request.
 - `profiles` only lets employees update `full_name`, `avatar_url` and
   `department`; usernames and the `must_change_password` flag are only writable
   by the service role (the change-password action clears the flag server-side).
+- `access_grants`, `access_categories` and `access_capabilities` are readable by
+  permission managers; `effective_access_for` refuses to reveal another person's
+  scopes unless the caller has `permissions.manage = all`.
 - Initial passwords must be at least 6 characters (Supabase Auth minimum), so
   employee numbers shorter than that need a prefix or a longer code.
 - `resolve_login_email` is callable by `service_role` only.

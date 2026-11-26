@@ -24,6 +24,28 @@ function refreshAll() {
   revalidatePath("/");
 }
 
+async function resolveLunchCategory(
+  formData: FormData,
+): Promise<{ id: string | null } | { error: string }> {
+  const categoryId = field(formData, "category_id", 40);
+  if (!categoryId) {
+    return { id: null };
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("access_categories")
+    .select("id, module")
+    .eq("id", categoryId)
+    .maybeSingle();
+
+  if (!data || data.module !== "lunch") {
+    return { error: "دسته انتخاب‌شده برای منوی ناهار معتبر نیست." };
+  }
+
+  return { id: categoryId };
+}
+
 export async function saveServiceSettings(
   _state: AdminFormState,
   formData: FormData,
@@ -85,6 +107,10 @@ export async function saveWeeklyMenuItem(
   const isEnabled = formData.get("is_enabled") === "on";
   const sideOrDrink = field(formData, "side_or_drink");
   const tag = field(formData, "tag", 40);
+  const category = await resolveLunchCategory(formData);
+  if ("error" in category) {
+    return { error: category.error };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("weekly_menu").upsert(
@@ -94,6 +120,7 @@ export async function saveWeeklyMenuItem(
       side_or_drink: sideOrDrink || null,
       tag: tag || null,
       is_enabled: isEnabled,
+      category_id: category.id,
     },
     { onConflict: "weekday" },
   );
@@ -150,6 +177,11 @@ export async function saveMenuOverride(
     return { error: "برای روز باز، نام غذای اصلی الزامی است." };
   }
 
+  const category = await resolveLunchCategory(formData);
+  if ("error" in category) {
+    return { error: category.error };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.from("menu_overrides").upsert(
     {
@@ -158,6 +190,7 @@ export async function saveMenuOverride(
       side_or_drink: field(formData, "side_or_drink") || null,
       tag: field(formData, "tag", 40) || null,
       is_closed: isClosed,
+      category_id: isClosed ? null : category.id,
     },
     { onConflict: "service_date" },
   );

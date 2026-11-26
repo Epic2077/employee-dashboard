@@ -1,8 +1,7 @@
 import "server-only";
 
-import { getMyAccess } from "@/lib/auth/permissions";
+import { requireCapability } from "@/lib/auth/permissions";
 import { toAppRole } from "@/lib/auth/roles";
-import { requireUser } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ProfileRole } from "@/lib/supabase/models";
 
@@ -51,8 +50,7 @@ export async function getDirectory({
 }: {
   q?: string;
 } = {}): Promise<DirectoryData> {
-  const claims = await requireUser();
-  const access = await getMyAccess();
+  const access = await requireCapability("directory.view");
   const admin = createAdminClient();
 
   const primary = await admin
@@ -113,15 +111,13 @@ export async function getDirectory({
   }
 
   const teamNameSet = new Set(
-    [...access.managedDepartmentNames, access.departmentName].filter(
-      (name): name is string => Boolean(name && name.trim()),
-    ),
+    access.teamDepartmentNames.filter((name) => Boolean(name && name.trim())),
   );
-  const teamIdSet = new Set(access.managedDepartmentIds);
+  const teamIdSet = new Set(access.teamDepartmentIds);
 
   const entries: DirectoryEntry[] = profiles.map((profile) => {
     const isTeamMember =
-      profile.id !== claims.sub &&
+      profile.id !== access.userId &&
       ((profile.department_id != null &&
         teamIdSet.has(profile.department_id)) ||
         (profile.department != null && teamNameSet.has(profile.department)));

@@ -17,32 +17,15 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 };
 
 export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
-  employee: "مشاهده منو، رزرو ناهار و سفارش سرویس‌ها",
-  manager: "مشاهده اطلاعات تیم خود",
+  employee: "مشاهده بخش‌های مجاز، رزرو ناهار و سفارش سرویس‌ها",
+  manager: "دسترسی تیمی به گزارش‌ها و فعالیت اعضای تیم",
   ceo: "مشاهده همه تیم‌ها و گزارش‌ها (فقط‌خواندنی)",
-  admin: "مدیریت منو، تنظیمات و گزارش‌های کل مجموعه",
+  admin: "مدیریت محتوا، تنظیمات و گزارش‌های کل مجموعه",
   owner: "دسترسی کامل، از جمله کاربران، دسترسی‌ها و تیم‌ها",
 };
 
 export function toAppRole(value: string | null | undefined): AppRole {
   return APP_ROLES.includes(value as AppRole) ? (value as AppRole) : "employee";
-}
-
-/** manager, ceo, admin and owner can open at least one report. */
-export function canViewReports(role: string): boolean {
-  return (
-    role === "manager" || role === "ceo" || role === "admin" || role === "owner"
-  );
-}
-
-/** admin and owner can change the menu, overrides and service settings. */
-export function canManageMenu(role: string): boolean {
-  return role === "admin" || role === "owner";
-}
-
-/** anyone who may open some part of /admin. */
-export function canAccessAdminPanel(role: string): boolean {
-  return canViewReports(role) || role === "admin" || role === "owner";
 }
 
 /** only the owner can assign roles and manage accounts. */

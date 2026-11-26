@@ -205,6 +205,44 @@ unit_price_irt)` with one row per employee/service/day,
   - Data scoping is enforced in the loaders _and_ in RLS, so a manager cannot
     read another team's rows even with a crafted request.
 
+## Layered access, data categories & team activity
+
+- Migration `*_layered_access_and_categories.sql` replaces `role_permissions`
+  with `access_grants(subject_type ∈ role/team/team_manager/user, capability,
+  category_id, mode, scope)` plus the `access_capabilities` catalogue and the
+  shared `access_categories` registry. Existing role rows are copied before the
+  old table is dropped.
+- Resolution: role → team → team-manager → person. Grants widen (widest wins),
+  a deny at the team/manager layer overrides the broader scope, the person
+  exception is final, and `owner` bypasses everything. `effective_scope`,
+  `category_scope`, `my_effective_access` and `effective_access_for` live in SQL
+  so the app and RLS cannot drift. The resolver functions are finalised in
+  `*_access_deny_precedence.sql` (denies override, grants widen).
+- New employee sections: `lunch.view`, `services.view`, `config.view`,
+  `directory.view` (none/all) and `team.activity` (none/team/all). The sidebar,
+  home tabs and route guards use them, so a team can be given or denied a whole
+  section. A category-only grant still opens the section with just those items.
+- Categories are hard-enforced in RLS and in the booking/ordering rules:
+  `services`, `weekly_menu` and `menu_overrides` carry `category_id`;
+  `can_reserve`, `can_order_service`, `prepare_service_order` and the report
+  policies check the resolved category scope. The owner console manages the
+  registry, and `README` documents how a future module opts in.
+- Manager team scope is now “managed teams ∪ own team” in both
+  `can_view_user` and `lib/data/scope.ts`.
+- Owner console split into `/admin/permissions` (role matrix + categories),
+  `/admin/permissions/teams/[id]` (team settings, member grants, manager grants,
+  per-category allow/deny) and `/admin/permissions/people/[id]` (person
+  exceptions + effective-access preview). Saves go through the atomic
+  `set_role_grants` / `set_subject_grants` RPCs.
+- `/admin/team` (sidebar: «فعالیت تیم») shows per-member summary cards and a
+  filterable feed of lunches, service orders and config creations for the
+  selected Persian month, scoped to the manager's teams.
+- Assignment as a team manager grants team-manager access even when the profile
+  role is still `employee`; the sidebar user menu shows «مدیر تیم» for them.
+- `/admin/users` links each account to its exception page; admin-area access
+  checks only admin capabilities, so the new employee sections cannot leak
+  `/admin`.
+
 ## Digital configs (V2Ray)
 
 - Migration `*_digital_configs.sql` adds `digital.manage`, `digital_settings`

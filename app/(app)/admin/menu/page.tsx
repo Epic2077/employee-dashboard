@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/persian-calendar";
 import { Input } from "@/components/ui/input";
 import { adminFieldClass } from "@/lib/admin/styles";
+import { getCategories } from "@/lib/data/categories";
 import { getMenuAdminData } from "@/lib/data/admin-menu";
 
 import {
@@ -34,7 +35,13 @@ export default function AdminMenuPage() {
 async function MenuView() {
   await connection();
 
-  const data = await getMenuAdminData();
+  const [data, allCategories] = await Promise.all([
+    getMenuAdminData(),
+    getCategories(),
+  ]);
+  const lunchCategories = allCategories.filter(
+    (category) => category.module === "lunch" && category.isActive,
+  );
   const today = getTodayPersianParts();
   const years = [today.year - 1, today.year, today.year + 1, today.year + 2];
 
@@ -146,6 +153,19 @@ async function MenuView() {
                 defaultValue={row.tag}
                 placeholder="برچسب (اختیاری)"
               />
+              <select
+                name="category_id"
+                defaultValue={row.categoryId ?? ""}
+                className={adminFieldClass}
+                aria-label="دسته محتوا"
+              >
+                <option value="">بدون دسته</option>
+                {lunchCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
             </AdminForm>
           ))}
         </div>
@@ -214,6 +234,19 @@ async function MenuView() {
               <Input name="main_dish" placeholder="غذای اصلی" />
               <Input name="side_or_drink" placeholder="مخلفات / نوشیدنی" />
               <Input name="tag" placeholder="برچسب (اختیاری)" />
+              <select
+                name="category_id"
+                defaultValue=""
+                className={adminFieldClass}
+                aria-label="دسته محتوا"
+              >
+                <option value="">بدون دسته</option>
+                {lunchCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
               <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <input
                   type="checkbox"
@@ -287,6 +320,19 @@ async function MenuView() {
                           placeholder="برچسب"
                           className="max-w-28"
                         />
+                        <select
+                          name="category_id"
+                          defaultValue={row.categoryId ?? ""}
+                          className="h-8 rounded-md border bg-background px-2 text-xs"
+                          aria-label="دسته محتوا"
+                        >
+                          <option value="">بدون دسته</option>
+                          {lunchCategories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
                         <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                           <input
                             type="checkbox"

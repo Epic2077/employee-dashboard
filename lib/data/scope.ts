@@ -24,8 +24,8 @@ export function filterVisibleProfiles<T extends ScopedProfile>(
     case "self":
       return profiles.filter((profile) => profile.id === access.userId);
     case "team": {
-      const ids = new Set(access.managedDepartmentIds);
-      const names = new Set(access.managedDepartmentNames);
+      const ids = new Set(access.teamDepartmentIds);
+      const names = new Set(access.teamDepartmentNames);
       return profiles.filter(
         (profile) =>
           (profile.department_id != null && ids.has(profile.department_id)) ||

@@ -32,6 +32,7 @@ import {
 export function NavUser({
   user,
   role,
+  teamManager,
 }: {
   user: {
     name: string;
@@ -39,12 +40,13 @@ export function NavUser({
     avatar?: string;
   };
   role?: string;
+  teamManager?: boolean;
 }) {
   const { isMobile } = useSidebar();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const initials = getInitials(user.name);
-  const roleLabel = ROLE_LABELS[toAppRole(role)];
+  const roleLabel = teamManager ? "مدیر تیم" : ROLE_LABELS[toAppRole(role)];
 
   return (
     <SidebarMenu>

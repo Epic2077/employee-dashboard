@@ -25,49 +25,72 @@ export type SidebarUser = {
   avatar?: string;
 };
 
+export type SidebarSections = {
+  lunch: boolean;
+  services: boolean;
+  config: boolean;
+  directory: boolean;
+};
+
 /**
  * Sidebar categories, filtered by capability scope:
- *   خدمات کارکنان  every role
- *   گزارش‌ها       any reports.* capability
+ *   خدمات کارکنان  lunch/services/config/directory view capabilities
+ *   گزارش‌ها       reports.* and team.activity
  *   مدیریت         menu/users/permissions capabilities
  */
-function buildNav(role: AppRole, scopes: ScopeMap): NavMainItem[] {
-  const nav: NavMainItem[] = [
-    {
+function buildNav(
+  role: AppRole,
+  scopes: ScopeMap,
+  sections: SidebarSections,
+): NavMainItem[] {
+  const nav: NavMainItem[] = [];
+
+  const employeeItems: NavMainSubItem[] = [];
+
+  if (sections.lunch) {
+    employeeItems.push({
+      title: "ناهار",
+      isActive: true,
+      slug: "lunch",
+      tag: "رزرو",
+    });
+  }
+  if (sections.services) {
+    employeeItems.push({
+      title: "سرویس‌ها",
+      isActive: false,
+      slug: "services",
+      tag: "سفارش",
+    });
+  }
+  if (sections.config) {
+    employeeItems.push({
+      title: "کانفیگ",
+      isActive: false,
+      slug: "config",
+      tag: "اشتراک",
+    });
+  }
+  if (sections.directory) {
+    employeeItems.push({
+      title: "همکاران",
+      isActive: false,
+      slug: "directory",
+      url: "/directory",
+      tag: "تماس",
+    });
+  }
+
+  if (employeeItems.length > 0) {
+    nav.push({
       title: "خدمات کارکنان",
       label: "خدمات کارکنان",
       url: "#",
       icon: <User />,
       isActive: true,
-      items: [
-        {
-          title: "ناهار",
-          isActive: true,
-          slug: "lunch",
-          tag: "رزرو",
-        },
-        {
-          title: "سرویس‌ها",
-          isActive: false,
-          slug: "services",
-          tag: "سفارش",
-        },
-        {
-          title: "کانفیگ",
-          isActive: false,
-          slug: "config",
-          tag: "اشتراک",
-        },
-        {
-          title: "همکاران",
-          isActive: false,
-          slug: "directory",
-          url: "/directory",
-          tag: "تماس",
-        },
-      ],
-    },
-  ];
+      items: employeeItems,
+    });
+  }
 
   const reportItems: NavMainSubItem[] = [];
   const lunchScope: Scope = scopes["reports.lunch"];
@@ -96,6 +119,15 @@ function buildNav(role: AppRole, scopes: ScopeMap): NavMainItem[] {
       slug: "admin-services",
       url: "/admin/services",
       tag: SCOPE_TAGS[servicesScope],
+    });
+  }
+  if (scopes["team.activity"] !== "none") {
+    reportItems.push({
+      title: "فعالیت تیم",
+      isActive: false,
+      slug: "admin-team",
+      url: "/admin/team",
+      tag: SCOPE_TAGS[scopes["team.activity"]],
     });
   }
 
@@ -187,14 +219,21 @@ export function AppSidebar({
   user,
   role,
   scopes,
+  sections,
+  teamManager,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   user: SidebarUser;
   role: string;
   scopes: ScopeMap;
+  sections: SidebarSections;
+  teamManager?: boolean;
 }) {
   const appRole = toAppRole(role);
-  const nav = React.useMemo(() => buildNav(appRole, scopes), [appRole, scopes]);
+  const nav = React.useMemo(
+    () => buildNav(appRole, scopes, sections),
+    [appRole, scopes, sections],
+  );
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -213,7 +252,7 @@ export function AppSidebar({
         <NavMain items={nav} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} role={role} />
+        <NavUser user={user} role={role} teamManager={teamManager} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

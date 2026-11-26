@@ -15,6 +15,7 @@ export type WeeklyMenuAdminRow = {
   tag: string;
   isEnabled: boolean;
   exists: boolean;
+  categoryId: string | null;
 };
 
 export type OverrideAdminRow = {
@@ -23,6 +24,7 @@ export type OverrideAdminRow = {
   sideOrDrink: string;
   tag: string;
   isClosed: boolean;
+  categoryId: string | null;
 };
 
 export type MenuAdminData = {
@@ -46,10 +48,12 @@ export async function getMenuAdminData(): Promise<MenuAdminData> {
       .maybeSingle(),
     supabase
       .from("weekly_menu")
-      .select("weekday, main_dish, side_or_drink, tag, is_enabled"),
+      .select("weekday, main_dish, side_or_drink, tag, is_enabled, category_id"),
     supabase
       .from("menu_overrides")
-      .select("service_date, main_dish, side_or_drink, tag, is_closed")
+      .select(
+        "service_date, main_dish, side_or_drink, tag, is_closed, category_id",
+      )
       .order("service_date", { ascending: true }),
   ]);
 
@@ -73,6 +77,7 @@ export async function getMenuAdminData(): Promise<MenuAdminData> {
       tag: row?.tag ?? "",
       isEnabled: row?.is_enabled ?? !meta.isFriday,
       exists: Boolean(row),
+      categoryId: row?.category_id ?? null,
     };
   });
 
@@ -87,6 +92,7 @@ export async function getMenuAdminData(): Promise<MenuAdminData> {
       sideOrDrink: row.side_or_drink ?? "",
       tag: row.tag ?? "",
       isClosed: row.is_closed,
+      categoryId: row.category_id ?? null,
     })),
     todayIso: getTodayIsoDate(),
   };

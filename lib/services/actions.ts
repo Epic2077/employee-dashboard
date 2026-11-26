@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getTodayIsoDate } from "@/components/shared/persian-calendar";
-import { requireUser } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 
 export type ServicesActionResult =
@@ -19,6 +19,9 @@ function mapServiceError(error: { code?: string; message: string }) {
   }
   if (error.message.includes("service_inactive")) {
     return "این سرویس در حال حاضر غیرفعال است.";
+  }
+  if (error.message.includes("service_category_denied")) {
+    return "دسترسی شما به این دسته از سرویس‌ها محدود شده است.";
   }
   if (error.message.includes("service_not_found")) {
     return "این سرویس پیدا نشد.";
@@ -41,7 +44,7 @@ export async function setServiceQuantity(input: {
   serviceId: string;
   quantity: number;
 }): Promise<ServicesActionResult> {
-  const claims = await requireUser();
+  const access = await requireCapability("services.view");
 
   const serviceId = String(input.serviceId ?? "").trim();
   const quantity = Math.trunc(Number(input.quantity));
@@ -60,7 +63,7 @@ export async function setServiceQuantity(input: {
     const { error } = await supabase
       .from("service_orders")
       .delete()
-      .eq("user_id", claims.sub)
+      .eq("user_id", access.userId)
       .eq("service_id", serviceId)
       .eq("service_date", todayIso);
 
@@ -70,7 +73,7 @@ export async function setServiceQuantity(input: {
   } else {
     const { error } = await supabase.from("service_orders").upsert(
       {
-        user_id: claims.sub,
+        user_id: access.userId,
         service_id: serviceId,
         service_date: todayIso,
         quantity,

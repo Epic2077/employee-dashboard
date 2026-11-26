@@ -1,5 +1,7 @@
 import { Fragment, Suspense } from "react";
+import Link from "next/link";
 import { connection } from "next/server";
+import { ChevronLeftIcon, FolderTreeIcon, UsersIcon } from "lucide-react";
 
 import { AdminForm } from "@/components/admin/admin-form";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
@@ -10,7 +12,8 @@ import {
   CAPABILITY_DESCRIPTIONS,
   CAPABILITY_GROUPS,
   CAPABILITY_LABELS,
-  FULL_ONLY_CAPABILITIES,
+  CAPABILITY_SCOPES,
+  CATEGORY_MODULE_LABELS,
   SCOPE_LABELS,
   type Capability,
   type Scope,
@@ -18,17 +21,14 @@ import {
 import { getPermissionsPageData } from "@/lib/data/admin-permissions";
 
 import {
-  createTeam,
-  deleteTeam,
-  savePermissionsMatrix,
-  updateTeam,
+  createCategory,
+  deleteCategory,
+  saveRoleGrants,
+  updateCategory,
 } from "./actions";
 
 /** Roles shown as matrix columns (owner is always "everything"). */
 const MATRIX_ROLES: AppRole[] = ["employee", "manager", "ceo", "admin"];
-
-const ALL_SCOPES: Scope[] = ["none", "self", "team", "all"];
-const FULL_SCOPES: Scope[] = ["none", "all"];
 
 export default function PermissionsPage() {
   return (
@@ -41,7 +41,7 @@ export default function PermissionsPage() {
 async function PermissionsView() {
   await connection();
 
-  const { available, source, matrix, teams, managers } =
+  const { available, source, matrix, teams, categories } =
     await getPermissionsPageData();
 
   return (
@@ -52,8 +52,8 @@ async function PermissionsView() {
             دسترسی‌ها و تیم‌ها
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            تعیین کنید هر نقش به چه بخشی و تا چه حد دسترسی داشته باشد، و مدیر هر
-            تیم را مشخص کنید.
+            دسترسی نقش‌ها، تیم‌ها، مدیران تیم و استثناهای فردی را از همین‌جا
+            مدیریت کنید.
           </p>
         </div>
         <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
@@ -61,11 +61,45 @@ async function PermissionsView() {
         </span>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/admin/permissions/teams"
+          className="flex items-center justify-between rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
+        >
+          <div className="flex items-center gap-3">
+            <UsersIcon className="size-5 text-primary" />
+            <div>
+              <p className="text-sm font-semibold">تیم‌ها و دسترسی تیمی</p>
+              <p className="text-[11px] text-muted-foreground">
+                {teams.length} تیم ثبت شده است
+              </p>
+            </div>
+          </div>
+          <ChevronLeftIcon className="size-4 text-muted-foreground" />
+        </Link>
+
+        <Link
+          href="/admin/permissions/people"
+          className="flex items-center justify-between rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
+        >
+          <div className="flex items-center gap-3">
+            <FolderTreeIcon className="size-5 text-primary" />
+            <div>
+              <p className="text-sm font-semibold">استثناهای افراد</p>
+              <p className="text-[11px] text-muted-foreground">
+                دسترسی یک نفر را مستقل از نقش و تیم تنظیم کنید
+              </p>
+            </div>
+          </div>
+          <ChevronLeftIcon className="size-4 text-muted-foreground" />
+        </Link>
+      </div>
+
       {!available ? (
         <div className="rounded-xl border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
           جدول دسترسی‌ها هنوز روی دیتابیس ساخته نشده است. مایگریشن
           <span className="mx-1 font-mono text-[11px]" dir="ltr">
-            20261124083041_teams_and_permissions.sql
+            20261126100000_layered_access_and_categories.sql
           </span>
           را اجرا کنید. تا آن زمان مقادیر پیش‌فرض نمایش داده می‌شود.
         </div>
@@ -82,14 +116,15 @@ async function PermissionsView() {
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold">ماتریس دسترسی نقش‌ها</h2>
           <p className="text-[11px] text-muted-foreground">
-            «خودم» فقط رکوردهای شخصی، «تیم من» اعضای تیم‌های تحت مدیریت و «همه»
-            کل مجموعه را شامل می‌شود. نقش مالک همیشه همه دسترسی‌ها را دارد.
+            این جدول پایه دسترسی هر نقش است. تیم‌ها، مدیران تیم و استثناهای فردی
+            می‌توانند آن را گسترده‌تر یا محدودتر کنند. نقش مالک همیشه همه
+            دسترسی‌ها را دارد.
           </p>
         </div>
 
         <AdminForm
-          action={savePermissionsMatrix}
-          submitLabel="ذخیره ماتریس دسترسی"
+          action={saveRoleGrants}
+          submitLabel="ذخیره ماتریس نقش‌ها"
           className="space-y-4"
         >
           <div className="overflow-x-auto rounded-xl border bg-card">
@@ -130,7 +165,7 @@ async function PermissionsView() {
                         </td>
                         {MATRIX_ROLES.map((role) => (
                           <td key={role} className="px-2 py-2 text-center">
-                            <ScopeSelect
+                            <RoleScopeSelect
                               role={role}
                               capability={capability}
                               value={matrix[role][capability]}
@@ -151,104 +186,143 @@ async function PermissionsView() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">تیم‌ها و مدیران</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold">دسته‌بندی محتوا</h2>
+          <p className="text-[11px] text-muted-foreground">
+            دسته‌ها برای محدودکردن محتوا (سرویس‌ها و منوی ناهار) به کار می‌روند و
+            برای ماژول‌های آینده هم قابل استفاده‌اند.
+          </p>
+        </div>
 
         <div className="rounded-xl border bg-card p-4">
-          <p className="mb-3 text-[11px] text-muted-foreground">
-            مدیر هر تیم، در گزارش‌ها و فهرست کاربران فقط اعضای همان تیم را
-            می‌بیند. اعضای تیم از روی «واحد سازمانی» کاربر در صفحه کاربران مشخص
-            می‌شوند.
-          </p>
-
           <AdminForm
-            action={createTeam}
-            submitLabel="افزودن تیم"
+            action={createCategory}
+            submitLabel="افزودن دسته"
             size="sm"
             className="flex flex-wrap items-end gap-3"
           >
             <label className="space-y-1 text-xs">
-              <span className="text-muted-foreground">نام تیم *</span>
+              <span className="text-muted-foreground">ماژول *</span>
+              <select name="module" className={adminFieldClass}>
+                {Object.entries(CATEGORY_MODULE_LABELS).map(
+                  ([module, label]) => (
+                    <option key={module} value={module}>
+                      {label}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">شناسه *</span>
               <Input
-                name="name"
+                name="slug"
                 required
-                placeholder="مالی"
-                className="h-8 w-48"
+                dir="ltr"
+                placeholder="drinks"
+                className="h-8 w-32"
               />
             </label>
             <label className="space-y-1 text-xs">
-              <span className="text-muted-foreground">مدیر تیم</span>
-              <select
-                name="manager_id"
-                defaultValue=""
-                className={adminFieldClass}
-              >
-                <option value="">بدون مدیر</option>
-                {managers.map((manager) => (
-                  <option key={manager.id} value={manager.id}>
-                    {manager.name}
-                  </option>
-                ))}
-              </select>
+              <span className="text-muted-foreground">نام *</span>
+              <Input name="name" required placeholder="نوشیدنی" className="h-8 w-40" />
+            </label>
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">ترتیب</span>
+              <Input
+                name="sort_order"
+                type="number"
+                defaultValue={0}
+                className="h-8 w-20"
+              />
+            </label>
+            <label className="space-y-1 text-xs">
+              <span className="text-muted-foreground">توضیح</span>
+              <Input name="description" className="h-8 w-52" />
             </label>
           </AdminForm>
         </div>
 
-        {teams.length === 0 ? (
+        {categories.length === 0 ? (
           <p className="rounded-xl border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-            هنوز تیمی ساخته نشده است.
+            هنوز دسته‌ای ساخته نشده است. بدون دسته، دسترسی هر بخش یکپارچه است.
           </p>
         ) : (
           <div className="grid gap-3 xl:grid-cols-2">
-            {teams.map((team) => (
-              <div key={team.id} className="rounded-xl border bg-card p-4">
+            {categories.map((category) => (
+              <div key={category.id} className="rounded-xl border bg-card p-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-muted-foreground">
+                    {CATEGORY_MODULE_LABELS[category.module] ?? category.module}
+                    {" · "}
+                    <span dir="ltr">{category.slug}</span>
+                  </span>
+                  <span
+                    className={
+                      category.isActive
+                        ? "text-[10px] text-emerald-600"
+                        : "text-[10px] text-muted-foreground"
+                    }
+                  >
+                    {category.isActive ? "فعال" : "غیرفعال"}
+                  </span>
+                </div>
+
                 <AdminForm
-                  key={`${team.id}-${team.name}-${team.managerId ?? "none"}`}
-                  action={updateTeam}
-                  submitLabel="ذخیره تغییرات"
+                  action={updateCategory}
+                  submitLabel="ذخیره"
                   size="sm"
-                  className="space-y-3"
+                  className="space-y-2"
                 >
-                  <input type="hidden" name="team_id" value={team.id} />
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-muted-foreground tabular-nums">
-                      {team.memberCount} عضو
-                    </span>
-                  </div>
+                  <input type="hidden" name="category_id" value={category.id} />
                   <div className="grid gap-2 sm:grid-cols-2">
                     <label className="space-y-1 text-xs">
-                      <span className="text-muted-foreground">نام تیم</span>
-                      <Input name="name" defaultValue={team.name} required />
+                      <span className="text-muted-foreground">نام</span>
+                      <Input name="name" defaultValue={category.name} required />
                     </label>
                     <label className="space-y-1 text-xs">
-                      <span className="text-muted-foreground">مدیر تیم</span>
-                      <select
-                        name="manager_id"
-                        defaultValue={team.managerId ?? ""}
-                        className={adminFieldClass}
-                      >
-                        <option value="">بدون مدیر</option>
-                        {managers.map((manager) => (
-                          <option key={manager.id} value={manager.id}>
-                            {manager.name}
-                          </option>
-                        ))}
-                      </select>
+                      <span className="text-muted-foreground">ترتیب</span>
+                      <Input
+                        name="sort_order"
+                        type="number"
+                        defaultValue={category.sortOrder}
+                      />
                     </label>
                   </div>
+                  <label className="space-y-1 text-xs">
+                    <span className="text-muted-foreground">توضیح</span>
+                    <Input
+                      name="description"
+                      defaultValue={category.description ?? ""}
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      name="is_active"
+                      defaultChecked={category.isActive}
+                      className="size-3.5"
+                    />
+                    <span className="text-muted-foreground">فعال باشد</span>
+                  </label>
                 </AdminForm>
 
                 <div className="mt-3 border-t pt-3">
                   <AdminForm
-                    action={deleteTeam}
+                    action={deleteCategory}
                     submitSlot={
                       <ConfirmSubmit
-                        message={`تیم «${team.name}» حذف شود؟ اعضا بدون تیم می‌شوند.`}
+                        message={`دسته «${category.name}» حذف شود؟ دسترسی‌های مرتبط با آن هم پاک می‌شوند.`}
                       >
-                        حذف تیم
+                        حذف دسته
                       </ConfirmSubmit>
                     }
                   >
-                    <input type="hidden" name="team_id" value={team.id} />
+                    <input
+                      type="hidden"
+                      name="category_id"
+                      value={category.id}
+                    />
                   </AdminForm>
                 </div>
               </div>
@@ -260,7 +334,7 @@ async function PermissionsView() {
   );
 }
 
-function ScopeSelect({
+function RoleScopeSelect({
   role,
   capability,
   value,
@@ -269,18 +343,14 @@ function ScopeSelect({
   capability: Capability;
   value: Scope;
 }) {
-  const options = FULL_ONLY_CAPABILITIES.includes(capability)
-    ? FULL_SCOPES
-    : ALL_SCOPES;
-
   return (
     <select
-      name={`scope:${role}:${capability}`}
+      name={`role:${role}:${capability}`}
       defaultValue={value}
       className="h-7 rounded-md border bg-background px-1 text-[11px]"
       aria-label={`${CAPABILITY_LABELS[capability]} برای ${ROLE_LABELS[role]}`}
     >
-      {options.map((scope) => (
+      {CAPABILITY_SCOPES[capability].map((scope) => (
         <option key={scope} value={scope}>
           {SCOPE_LABELS[scope]}
         </option>
@@ -293,6 +363,10 @@ function PermissionsSkeleton() {
   return (
     <div className="space-y-6" aria-hidden="true">
       <div className="h-12 animate-pulse rounded-lg bg-muted" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="h-20 animate-pulse rounded-xl bg-muted" />
+        <div className="h-20 animate-pulse rounded-xl bg-muted" />
+      </div>
       <div className="h-64 animate-pulse rounded-xl bg-muted" />
       <div className="h-40 animate-pulse rounded-xl bg-muted" />
     </div>

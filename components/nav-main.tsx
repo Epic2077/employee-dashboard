@@ -146,59 +146,85 @@ export function NavMain({
 
   return (
     <>
-      {items.map((item) => {
-        const hasActiveChild = Boolean(item.items?.some(isSubItemActive));
-
-        return (
-          <SidebarGroup key={item.title}>
-            <CategoryLabel item={item} />
-            <SidebarMenu>
-              <Collapsible
-                defaultOpen={Boolean(item.isActive) || hasActiveChild}
-                className="group/collapsible"
-                render={<SidebarMenuItem />}
-              >
-                <CollapsibleTrigger
-                  render={<SidebarMenuButton tooltip={item.title} />}
-                >
-                  {item.icon}
-                  <span className="truncate">{item.title}</span>
-                  <ChevronRightIcon className="ms-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <SidebarMenuSub>
-                    {item.items?.map((subItem) => {
-                      const isCurrent = isSubItemActive(subItem);
-                      const href = hrefFor(subItem);
-                      return (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton
-                            isActive={isCurrent}
-                            render={
-                              <a
-                                href={href}
-                                aria-current={isCurrent ? "page" : undefined}
-                                onClick={() => setActive(subItem.slug)}
-                              />
-                            }
-                          >
-                            <span className="truncate">{subItem.title}</span>
-                            {subItem.tag ? (
-                              <span className="ms-auto shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground ring-1 ring-border">
-                                {subItem.tag}
-                              </span>
-                            ) : null}
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      );
-                    })}
-                  </SidebarMenuSub>
-                </CollapsibleContent>
-              </Collapsible>
-            </SidebarMenu>
-          </SidebarGroup>
-        );
-      })}
+      {items.map((item) => (
+        <NavGroup
+          key={item.title}
+          item={item}
+          isSubItemActive={isSubItemActive}
+          hrefFor={hrefFor}
+          setActive={setActive}
+        />
+      ))}
     </>
+  );
+}
+
+function NavGroup({
+  item,
+  isSubItemActive,
+  hrefFor,
+  setActive,
+}: {
+  item: NavMainItem;
+  isSubItemActive: (subItem: NavMainSubItem) => boolean;
+  hrefFor: (subItem: NavMainSubItem) => string;
+  setActive: (slug: string) => void;
+}) {
+  const hasActiveChild = Boolean(item.items?.some(isSubItemActive));
+  // Controlled on purpose: the active child changes after navigation, and an
+  // uncontrolled Collapsible must not change its defaultOpen after mount.
+  // The group with the current page always stays open.
+  const [userOpen, setUserOpen] = useState(Boolean(item.isActive));
+  const open = userOpen || hasActiveChild;
+
+  return (
+    <SidebarGroup>
+      <CategoryLabel item={item} />
+      <SidebarMenu>
+        <Collapsible
+          open={open}
+          onOpenChange={setUserOpen}
+          className="group/collapsible"
+          render={<SidebarMenuItem />}
+        >
+          <CollapsibleTrigger
+            render={<SidebarMenuButton tooltip={item.title} />}
+          >
+            {item.icon}
+            <span className="truncate">{item.title}</span>
+            <ChevronRightIcon className="ms-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <SidebarMenuSub>
+              {item.items?.map((subItem) => {
+                const isCurrent = isSubItemActive(subItem);
+                const href = hrefFor(subItem);
+                return (
+                  <SidebarMenuSubItem key={subItem.title}>
+                    <SidebarMenuSubButton
+                      isActive={isCurrent}
+                      render={
+                        <a
+                          href={href}
+                          aria-current={isCurrent ? "page" : undefined}
+                          onClick={() => setActive(subItem.slug)}
+                        />
+                      }
+                    >
+                      <span className="truncate">{subItem.title}</span>
+                      {subItem.tag ? (
+                        <span className="ms-auto shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground ring-1 ring-border">
+                          {subItem.tag}
+                        </span>
+                      ) : null}
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                );
+              })}
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarMenu>
+    </SidebarGroup>
   );
 }

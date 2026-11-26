@@ -6,7 +6,7 @@ import { cache } from "react";
 
 import type { Profile } from "@/lib/supabase/models";
 import { createClient } from "@/lib/supabase/server";
-import { canManageMenu, canViewReports, isOwnerRole } from "@/lib/auth/roles";
+import { isOwnerRole } from "@/lib/auth/roles";
 
 export type SessionClaims = {
   sub: string;
@@ -77,22 +77,6 @@ export const getCurrentProfile = cache(async (): Promise<Profile> => {
 
   return data;
 });
-
-export async function requireStaff(): Promise<Profile> {
-  const profile = await getCurrentProfile();
-  if (!canViewReports(profile.role)) {
-    redirect("/");
-  }
-  return profile;
-}
-
-export async function requireAdmin(): Promise<Profile> {
-  const profile = await getCurrentProfile();
-  if (!canManageMenu(profile.role)) {
-    redirect("/");
-  }
-  return profile;
-}
 
 export async function requireOwner(): Promise<Profile> {
   const profile = await getCurrentProfile();

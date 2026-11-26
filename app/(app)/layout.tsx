@@ -47,6 +47,13 @@ export default async function AppLayout({
         user={user}
         role={profile.role}
         scopes={access.scopes}
+        sections={{
+          lunch: access.hasAccess("lunch.view"),
+          services: access.hasAccess("services.view"),
+          config: access.hasAccess("config.view"),
+          directory: access.hasAccess("directory.view"),
+        }}
+        teamManager={access.managedDepartmentIds.length > 0}
       />
       <SidebarInset className="min-w-0 px-10 py-4">
         <Header user={{ name: profile.full_name, avatar: user.avatar }} />

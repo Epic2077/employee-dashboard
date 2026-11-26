@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
-import { DownloadIcon } from "lucide-react";
+import { ChevronLeftIcon, DownloadIcon } from "lucide-react";
 
 import { AdminForm } from "@/components/admin/admin-form";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
@@ -397,6 +397,16 @@ function UserCard({
         <InfoRow label="تاریخ ایجاد" value={formatDateTime(user.createdAt)} />
         <InfoRow label="ایمیل ورود" value={user.email ?? "—"} ltr mono />
       </dl>
+
+      {canManageUsers ? (
+        <Link
+          href={`/admin/permissions/people/${user.id}`}
+          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+        >
+          استثناهای دسترسی
+          <ChevronLeftIcon className="size-3 rotate-180" />
+        </Link>
+      ) : null}
 
       {canEdit ? (
         <details className="border-t pt-2">

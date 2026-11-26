@@ -91,6 +91,7 @@ export type Database = {
           side_or_drink: string | null;
           tag: string | null;
           is_enabled: boolean;
+          category_id: string | null;
           updated_at: string;
         };
         Insert: {
@@ -99,6 +100,7 @@ export type Database = {
           side_or_drink?: string | null;
           tag?: string | null;
           is_enabled?: boolean;
+          category_id?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -106,6 +108,7 @@ export type Database = {
           side_or_drink?: string | null;
           tag?: string | null;
           is_enabled?: boolean;
+          category_id?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -117,6 +120,7 @@ export type Database = {
           side_or_drink: string | null;
           tag: string | null;
           is_closed: boolean;
+          category_id: string | null;
           updated_at: string;
         };
         Insert: {
@@ -125,6 +129,7 @@ export type Database = {
           side_or_drink?: string | null;
           tag?: string | null;
           is_closed?: boolean;
+          category_id?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -132,6 +137,7 @@ export type Database = {
           side_or_drink?: string | null;
           tag?: string | null;
           is_closed?: boolean;
+          category_id?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -195,6 +201,7 @@ export type Database = {
           max_per_day: number;
           is_active: boolean;
           sort_order: number;
+          category_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -208,6 +215,7 @@ export type Database = {
           max_per_day?: number;
           is_active?: boolean;
           sort_order?: number;
+          category_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -220,6 +228,7 @@ export type Database = {
           max_per_day?: number;
           is_active?: boolean;
           sort_order?: number;
+          category_id?: string | null;
           updated_at?: string;
         };
         Relationships: [];
@@ -365,20 +374,102 @@ export type Database = {
         };
         Relationships: [];
       };
-      role_permissions: {
+      access_capabilities: {
         Row: {
-          role: "employee" | "manager" | "ceo" | "admin" | "owner";
-          capability: string;
-          scope: "none" | "self" | "team" | "all";
+          key: string;
+          group_key: string;
+          sort_order: number;
+          scopes: string[];
+          category_module: string | null;
+          created_at: string;
+        };
+        Insert: {
+          key: string;
+          group_key: string;
+          sort_order?: number;
+          scopes?: string[];
+          category_module?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          group_key?: string;
+          sort_order?: number;
+          scopes?: string[];
+          category_module?: string | null;
+        };
+        Relationships: [];
+      };
+      access_categories: {
+        Row: {
+          id: string;
+          module: string;
+          slug: string;
+          name: string;
+          description: string | null;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
           updated_at: string;
         };
         Insert: {
-          role: "employee" | "manager" | "ceo" | "admin" | "owner";
-          capability: string;
-          scope: "none" | "self" | "team" | "all";
+          id?: string;
+          module: string;
+          slug: string;
+          name: string;
+          description?: string | null;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
           updated_at?: string;
         };
         Update: {
+          module?: string;
+          slug?: string;
+          name?: string;
+          description?: string | null;
+          sort_order?: number;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      access_grants: {
+        Row: {
+          id: string;
+          subject_type: "role" | "team" | "team_manager" | "user";
+          role: "employee" | "manager" | "ceo" | "admin" | "owner" | null;
+          department_id: string | null;
+          user_id: string | null;
+          capability: string;
+          category_id: string | null;
+          mode: "grant" | "deny";
+          scope: "none" | "self" | "team" | "all";
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          subject_type: "role" | "team" | "team_manager" | "user";
+          role?: "employee" | "manager" | "ceo" | "admin" | "owner" | null;
+          department_id?: string | null;
+          user_id?: string | null;
+          capability: string;
+          category_id?: string | null;
+          mode?: "grant" | "deny";
+          scope?: "none" | "self" | "team" | "all";
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          subject_type?: "role" | "team" | "team_manager" | "user";
+          role?: "employee" | "manager" | "ceo" | "admin" | "owner" | null;
+          department_id?: string | null;
+          user_id?: string | null;
+          capability?: string;
+          category_id?: string | null;
+          mode?: "grant" | "deny";
           scope?: "none" | "self" | "team" | "all";
           updated_at?: string;
         };
@@ -398,6 +489,43 @@ export type Database = {
       normalize_username: {
         Args: { p_username: string };
         Returns: string | null;
+      };
+      my_effective_access: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          capability: string;
+          category_id: string | null;
+          scope: string;
+        }[];
+      };
+      effective_access_for: {
+        Args: { p_user_id: string };
+        Returns: {
+          capability: string;
+          category_id: string | null;
+          scope: string;
+        }[];
+      };
+      category_scope: {
+        Args: { p_capability: string; p_category_id: string | null };
+        Returns: string;
+      };
+      can_view_category: {
+        Args: { p_capability: string; p_category_id: string | null };
+        Returns: boolean;
+      };
+      set_role_grants: {
+        Args: { p_role: string; p_grants: Json };
+        Returns: undefined;
+      };
+      set_subject_grants: {
+        Args: {
+          p_subject_type: string;
+          p_department_id: string | null;
+          p_user_id: string | null;
+          p_grants: Json;
+        };
+        Returns: undefined;
       };
     };
     Enums: { [_ in never]: never };

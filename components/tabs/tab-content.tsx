@@ -10,45 +10,48 @@ import type { ServicesToday } from "@/lib/services/types";
 import LunchMain from "../lunch/Main";
 import { ServicesBoard } from "../services/ServicesBoard";
 
-const TABS = ["lunch", "services", "config"] as const;
-type TabId = (typeof TABS)[number];
-const DEFAULT_TAB: TabId = "lunch";
+export const TABS = ["lunch", "services", "config"] as const;
+export type TabId = (typeof TABS)[number];
 
-function parseTabFromHash(hash: string): TabId {
+function parseTabFromHash(hash: string, tabs: TabId[]): TabId {
   const cleaned = hash.replace(/^#/, "");
-  return (TABS as readonly string[]).includes(cleaned)
+  return (tabs as readonly string[]).includes(cleaned)
     ? (cleaned as TabId)
-    : DEFAULT_TAB;
+    : tabs[0];
 }
 
 export function TabContent({
+  tabs,
   lunch,
   services,
   config,
 }: {
-  lunch: LunchMonthData;
-  services: ServicesToday;
-  config: DigitalTabData;
+  tabs: TabId[];
+  lunch: LunchMonthData | null;
+  services: ServicesToday | null;
+  config: DigitalTabData | null;
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>(DEFAULT_TAB);
+  const [activeTab, setActiveTab] = useState<TabId>(tabs[0]);
 
   useEffect(() => {
     const handleHashChange = () => {
-      setActiveTab(parseTabFromHash(window.location.hash));
+      setActiveTab(parseTabFromHash(window.location.hash, tabs));
     };
 
     handleHashChange();
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+  }, [tabs]);
 
   return (
     <div className="py-5">
-      {activeTab === "lunch" && (
+      {activeTab === "lunch" && lunch && (
         <LunchMain key={`${lunch.year}-${lunch.month}`} data={lunch} />
       )}
-      {activeTab === "services" && <ServicesBoard data={services} />}
-      {activeTab === "config" && <ConfigPanel data={config} />}
+      {activeTab === "services" && services && (
+        <ServicesBoard data={services} />
+      )}
+      {activeTab === "config" && config && <ConfigPanel data={config} />}
     </div>
   );
 }
