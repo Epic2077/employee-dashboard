@@ -54,7 +54,7 @@ Toggleable features:
 | `sprints` | Sprint boards & planning — برد و برنامه‌ریزی اسپرینت | 7 |
 | `burndown` | Burndown & velocity — نمودار پیشرفت اسپرینت | 7 |
 | `epics` | Epics & story hierarchy — اپیک و داستان‌ها | 8 |
-| `story_points` | Story points — امتیاز وظیفه | 7 |
+| `story_points` | Sprint points & velocity — امتیاز و سرعت اسپرینت (simple effort points exist for everyone, see A17) | 7 |
 | `time_tracking` | Time tracking — ثبت زمان | 15 |
 | `git` | GitHub monitoring — مانیتورینگ گیت | 9 |
 | `call_center` | Call center — مرکز تماس | 12 |
@@ -98,7 +98,7 @@ Default for **all teams**.
 | A2 | Project members — اعضای پروژه | Add individual members or a whole team to a project; member list visible to project viewers. | All teams | 1 | P0 |
 | A3 | Boards — بردها | One or more Kanban boards per project, each with custom columns. | All teams | 2 | P0 |
 | A4 | Columns — ستون‌ها | Add, rename, reorder and delete columns; optional WIP limit per column. | All teams | 2 | P1 |
-| A5 | Cards — کارت‌ها | Title, markdown description, assignee(s), due date, priority, labels. | All teams | 3 | P0 |
+| A5 | Cards — کارت‌ها | Card basics: title, markdown description, assignee(s). Priority, deadlines, points and labels are A15–A18. | All teams | 3 | P0 |
 | A6 | Checklists — چک‌لیست | Checkable subtask list on a card with progress bar. | All teams | 3 | P1 |
 | A7 | Drag & drop — جابه‌جایی | Move cards between columns with dnd-kit (already in the project); every move is logged. | All teams | 2 | P0 |
 | A8 | Comments — نظرات | Comment threads on cards, @mentions of team members. | All teams | 4 | P1 |
@@ -107,7 +107,11 @@ Default for **all teams**.
 | A11 | Simple backlog — بک‌لاگ ساده | Every project has a backlog board/column; triage and rank cards by dragging. | All teams | 5 | P0 |
 | A12 | Search & filters — جستجو و فیلتر | Search across projects; filter by assignee, label, priority, due date. | All teams | 5 | P1 |
 | A13 | Recurring cards — وظایف تکرارشونده | Daily/weekly checklists (e.g. kitchen duty, backups) that re-open automatically. | All teams | 15 | P2 |
-| A14 | My tasks view — وظایف من | A personal «وظایف من» page across all projects for every user. | All teams | 3 | P0 |
+| A14 | My tasks view — وظایف من | A personal «وظایف من» page across all projects for every user, sorted by deadline and priority. | All teams | 3 | P0 |
+| A15 | Priority system — سیستم اولویت | Priority levels (کم، معمولی، زیاد، فوری) with colored badges; sort and filter by priority; high-priority cards highlighted. | All teams | 3 | P0 |
+| A16 | Deadlines — مهلت‌ها | Due date (and optional time) per card; overdue and due-today indicators, deadline sorting, «امروز» / «عقب‌افتاده» chips. | All teams | 3 | P0 |
+| A17 | Effort points — امتیاز وظیفه | Simple effort estimate on every card (1/2/3/5/8), summed per member and column; feeds workload analytics later. | All teams | 3 | P1 |
+| A18 | Labels — برچسب‌ها | Colored labels defined per project, applied to cards, filterable and searchable. | All teams | 3 | P1 |
 
 ### B. Jira-like extras for technical teams — امکانات پیشرفته برای تیم‌های فنی
 
@@ -119,7 +123,7 @@ Default for **all teams**.
 | B2 | Sprint boards — برد اسپرینت | Create a sprint with start/end dates and a goal; a sprint board is generated from the backlog. | Opt-in | 7 | P0 |
 | B3 | Sprint planning — برنامه‌ریزی اسپرینت | Move backlog cards into a sprint, estimate story points, see total. | Opt-in | 7 | P1 |
 | B4 | Burndown & velocity — نمودار پیشرفت | Burndown chart per sprint; velocity = completed points per sprint. | Opt-in | 7 | P1 |
-| B5 | Story points — امتیاز وظیفه | Optional points field on cards, used by planning and velocity. | Opt-in | 7 | P2 |
+| B5 | Sprint points & velocity — امتیاز و سرعت اسپرینت | Use the A17 effort points in sprint planning and velocity charts (dev teams). | Opt-in | 7 | P2 |
 | B6 | Epics — اپیک‌ها | Epic → stories/cards hierarchy with an epic progress bar. | Opt-in | 8 | P2 |
 | B7 | Subtasks — زیروظایف | Structured subtasks with assignee and status, beyond checklists. | Opt-in | 8 | P1 |
 | B8 | Release notes — یادداشت انتشار | Auto-generated release notes from cards done in a sprint. | Opt-in | 8 | P2 |
@@ -207,13 +211,16 @@ the real files follow the `YYYYMMDDHHMMSS_name.sql` convention.
 
 ### Phase 3 — Cards core — هسته کارت‌ها
 - **Goal:** tasks with assignees, due dates, priority, labels and checklists.
-- **Features:** A5, A6, A14.
+- **Features:** A5, A6, A14, A15, A16, A17, A18.
 - **Deliverables:** `cards.sql` (`cards`, `card_assignees`, `card_labels`,
-  `card_checklists`, policies); card modal with editor; «وظایف من» page.
+  `card_checklists`, priority/due/points columns, policies); card modal with
+  priority, deadline, points and label pickers; «وظایف من» page sorted by
+  deadline and priority.
 - **Capabilities:** `tasks.manage`.
 - **Depends on:** Phase 2.
-- **Verify:** create/move/assign a card; personal list updates; RLS: a member
-  cannot move a card in a project they are not in.
+- **Verify:** create/move/assign a card with priority, deadline, points and
+  labels; overdue badge appears after the due time; personal list updates;
+  RLS: a member cannot move a card in a project they are not in.
 
 ### Phase 4 — Comments, attachments, activity — نظرات، پیوست‌ها، تاریخچه
 - **Goal:** collaboration on cards.
@@ -373,3 +380,4 @@ the real files follow the `YYYYMMDDHHMMSS_name.sql` convention.
 | Date | Change — تغییر |
 | --- | --- |
 | 2026-11-26 | Initial draft — پیش‌نویس اولیه |
+| 2026-11-26 | Added explicit priority system, deadlines, effort points and labels to the task list (A15–A18) and Phase 3 — افزودن اولویت، مهلت، امتیاز و برچسب به فهرست وظایف |
