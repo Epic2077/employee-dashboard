@@ -30,6 +30,9 @@ Principles:
 4. **Ship in phases.** Each phase is independently usable and verifiable.
 5. **Managers see their team, members see themselves.** Every report respects
    the existing `self | team | all` scopes.
+6. **Departments are templates, not new engines.** Social media, filming,
+   sales and internal work reuse the same building blocks (boards, cards,
+   priorities, deadlines, points, labels, approvals, track lists).
 
 ---
 
@@ -60,6 +63,10 @@ Toggleable features:
 | `call_center` | Call center — مرکز تماس | 12 |
 | `analytics` | Analytics dashboards — داشبوردهای تحلیل | 14 |
 | `templates` | Board/project templates — قالب‌ها | 15 |
+| `social` | Social media module — سوشال مدیا | 17 |
+| `media` | Filming & photoshoots — فیلم‌برداری و عکاسی | 18 |
+| `internal_requests` | Internal requests & announcements — درخواست‌ها و اطلاعیه‌های داخلی | 19 |
+| `sales` | Sales pipeline — فروش | 20 |
 
 ---
 
@@ -83,6 +90,18 @@ and scopes `none | self | team | all` unless noted.
 | `git.view` | مشاهده فعالیت گیت | 10 | commits/PRs of repos in scope |
 | `git.manage` | اتصال مخازن گیت | 9 | connect repos, manage tokens, `none/all` |
 | `analytics.view` | مشاهده تحلیل‌ها | 14 | self / team / all |
+| `content.view` | مشاهده محتوای سوشال مدیا | 17 | team content calendar |
+| `content.manage` | مدیریت و انتشار محتوا | 17 | schedule/approve/publish, `none/all` only |
+| `shoots.view` | مشاهده پروژه‌های تصویربرداری | 18 | shoot requests and deliverables |
+| `shoots.manage` | مدیریت شوت‌ها و تحویلی‌ها | 18 | `none/all` only |
+| `equipment.view` | مشاهده تجهیزات | 18 | availability |
+| `equipment.manage` | تحویل/بازگشت تجهیزات | 18 | `none/all` only |
+| `requests.view` | مشاهده درخواست‌های داخلی | 19 | own requests + team board |
+| `requests.manage` | مدیریت درخواست‌های داخلی | 19 | `none/all` only |
+| `announcements.view` | مشاهده اطلاعیه‌ها | 19 | |
+| `announcements.manage` | انتشار اطلاعیه‌ها | 19 | `none/all` only |
+| `sales.view` | مشاهده سرنخ‌ها و معاملات | 20 | sales team by default |
+| `sales.manage` | مدیریت قیف فروش و اهداف | 20 | `none/all` only |
 
 ---
 
@@ -181,6 +200,74 @@ managers at `team`.
 | F2 | Audit log — تاریخچه مدیریتی | Who changed permissions, toggles, projects and clients. | 15 | P2 |
 | F3 | Storage — فضای پیوست | Supabase Storage bucket for card attachments with quotas. | 4 | P1 |
 | F4 | Templates — قالب‌ها | Board and project templates (e.g. «تیم فروش», «IT sprint»). | 15 | P2 |
+
+### G. Social media — سوشال مدیا
+
+**Opt-in per team** (marketing/media teams). Reuses cards, deadlines, labels
+and approvals.
+
+| # | Feature — ویژگی | Description | Availability | Phase | Priority |
+| --- | --- | --- | --- | --- | --- |
+| G1 | Content calendar — تقویم محتوا | Weekly/monthly calendar per platform and brand; drag planned posts onto dates. | Opt-in | 17 | P0 |
+| G2 | Platform accounts — حساب‌ها و پلتفرم‌ها | Register Instagram, Telegram, YouTube, LinkedIn, X accounts per brand with handles and owners. | Opt-in | 17 | P0 |
+| G3 | Post queue & statuses — صف انتشار | Draft → pending approval → scheduled → published → failed, with times and notes. | Opt-in | 17 | P0 |
+| G4 | Approval workflow — گردش تایید محتوا | Manager approves posts before scheduling (uses K2). | Opt-in | 17 | P0 |
+| G5 | Campaigns — کمپین‌ها | Group posts into campaigns with goals and deadlines. | Opt-in | 17 | P1 |
+| G6 | Caption & hashtag library — کتابخانه کپشن و هشتگ | Reusable captions/hashtags per brand. | Opt-in | 17 | P1 |
+| G7 | Post analytics — آمار پست‌ها | Manual engagement entry first (views/likes/comments), API connectors later. | Opt-in | 17 | P2 |
+
+### H. Filming & photoshoots — فیلم‌برداری و عکاسی
+
+**Opt-in per team** (media team). Other teams consume it through shoot
+requests.
+
+| # | Feature — ویژگی | Description | Availability | Phase | Priority |
+| --- | --- | --- | --- | --- | --- |
+| H1 | Shoot requests — درخواست‌های تصویربرداری | Other teams request a shoot (subject, date, location, deadline, priority); media manager approves. | Opt-in | 18 | P0 |
+| H2 | Shoot calendar — تقویم شوت‌ها | Book shoots per day with crew and location; prevent overlaps. | Opt-in | 18 | P0 |
+| H3 | Equipment inventory — انبار تجهیزات | Cameras, lenses, lights, drones with availability; checkout/return and maintenance. | Opt-in | 18 | P0 |
+| H4 | Deliverables — تحویلی‌ها | Edited photos/videos per shoot with deadlines, versions and delivery status. | Opt-in | 18 | P0 |
+| H5 | Editing pipeline — مراحل تدوین | Kanban per deliverable: raw → editing → review → delivered. | Opt-in | 18 | P0 |
+| H6 | Media library — آرشیو رسانه | Supabase Storage per project with tags and search; reused by social media. | Opt-in | 18 | P1 |
+
+### I. Internal company work — کارهای داخلی شرکت
+
+Default for **all teams**: every employee can file requests and read
+announcements; the responsible team manages the boards.
+
+| # | Feature — ویژگی | Description | Availability | Phase | Priority |
+| --- | --- | --- | --- | --- | --- |
+| I1 | Service requests — درخواست‌های خدمات | Any employee files a request (printer, supplies, cleaning, maintenance) → routed to the responsible team's board. | All teams | 19 | P0 |
+| I2 | Maintenance & facilities — تعمیرات و تاسیسات | Maintenance tickets with priority/deadlines for the facility team. | All teams | 19 | P1 |
+| I3 | Supplies & inventory — ملزومات اداری | Request items, stock levels, purchase approval. | All teams | 19 | P1 |
+| I4 | Announcements — اطلاعیه‌ها | Company notices with read receipts (who read what). | All teams | 19 | P1 |
+| I5 | Event coordination — هماهنگی مناسبت‌ها | Company events as checklist cards with budget and owners. | All teams | 19 | P2 |
+| I6 | Generic approvals — تاییدات داخلی | Approve/reject flows for purchases and internal asks (uses K2). | All teams | 19 | P2 |
+
+### J. Sales — فروش
+
+**Opt-in per team** (sales). Builds directly on the call-center clients (D).
+
+| # | Feature — ویژگی | Description | Availability | Phase | Priority |
+| --- | --- | --- | --- | --- | --- |
+| J1 | Leads & pipeline — سرنخ‌ها و قیف فروش | Kanban stages: new → contacted → proposal → negotiation → won/lost. | Opt-in | 20 | P0 |
+| J2 | Deals — معاملات | Value, expected close date, probability; pipeline total per stage. | Opt-in | 20 | P0 |
+| J3 | Client link — اتصال به مشتریان | Deals link to call-center clients; history visible on both sides. | Opt-in | 20 | P0 |
+| J4 | Product catalog — محصولات | Products/services with prices referenced by deals. | Opt-in | 20 | P1 |
+| J5 | Targets & quotas — اهداف فروش | Per-member monthly targets with progress bars. | Opt-in | 20 | P1 |
+| J6 | Sales follow-ups — پیگیری فروش | Deal follow-ups reuse call-center track lists (D4/D6). | Opt-in | 20 | P1 |
+| J7 | Sales KPIs — شاخص‌های فروش | Pipeline value, win rate, conversion, revenue per member. | Opt-in | 20 | P1 |
+
+### K. Cross-module enablers — زیرساخت مشترک ماژول‌ها
+
+Default for **all teams**; these make G–J fast to build.
+
+| # | Feature — ویژگی | Description | Availability | Phase | Priority |
+| --- | --- | --- | --- | --- | --- |
+| K1 | Custom fields — فیلدهای سفارشی | Boards can define team-specific fields (budget, location, platform, engagement…) shown on cards. | All teams | 16 | P1 |
+| K2 | Approval workflows — گردش تایید | Reusable approve/reject steps used by social, media and internal requests; history kept. | All teams | 16 | P0 |
+| K3 | Department templates — قالب هر بخش | One-click setup per team: sales pipeline, media calendar + equipment, social calendar… | All teams | 16 | P0 |
+| K4 | Team workspace — فضای کاری تیم | Each team sees its enabled modules in one workspace page. | All teams | 16 | P1 |
 
 ---
 
@@ -345,6 +432,61 @@ the real files follow the `YYYYMMDDHHMMSS_name.sql` convention.
 - **Verify:** mention triggers a notification; audit log records a permission
   change; a template creates a board with default columns.
 
+### Phase 16 — Cross-module enablers — زیرساخت مشترک ماژول‌ها
+- **Goal:** every department module is assembled from the same building blocks.
+- **Features:** K1, K2, K3, K4.
+- **Deliverables:** `module_framework.sql` (`board_fields`, `approval_steps`,
+  `approvals`, `team_workspaces`); reusable approval component; team workspace
+  page; department setup wizard.
+- **Capabilities:** none new (uses existing grants).
+- **Depends on:** Phases 3, 5, 6.
+- **Verify:** add a custom field to a board; run a two-step approval; create a
+  team workspace from a department template.
+
+### Phase 17 — Social media — سوشال مدیا
+- **Goal:** plan, approve and track posts.
+- **Features:** G1–G7.
+- **Deliverables:** `social_media.sql` (`social_accounts`, `social_posts`,
+  `social_campaigns`); content calendar; approval actions; manual engagement
+  fields per post.
+- **Capabilities:** `content.view`, `content.manage`.
+- **Depends on:** Phase 16 (approvals/custom fields), Phase 6.
+- **Verify:** plan a post, manager approves, status changes are logged;
+  calendar drag works; engagement numbers saved per post.
+
+### Phase 18 — Filming & photoshoots — فیلم‌برداری و عکاسی
+- **Goal:** from shoot request to delivered files.
+- **Features:** H1–H6.
+- **Deliverables:** `media_production.sql` (`shoot_requests`, `shoots`,
+  `equipment`, `equipment_checkouts`, `deliverables`); shoot calendar;
+  equipment page; media library in Supabase Storage.
+- **Capabilities:** `shoots.view/manage`, `equipment.view/manage`.
+- **Depends on:** Phase 16, Phase 3.
+- **Verify:** request a shoot, approve it, book equipment, deliver files;
+  double-booking the same equipment is blocked.
+
+### Phase 19 — Internal company work — کارهای داخلی شرکت
+- **Goal:** company-wide requests, maintenance and notices.
+- **Features:** I1–I6.
+- **Deliverables:** `internal_work.sql` (`service_requests`,
+  `announcements`, `announcement_reads`, `supply_items`); request boards per
+  team; announcements with read receipts.
+- **Capabilities:** `requests.view/manage`, `announcements.view/manage`.
+- **Depends on:** Phase 16, Phase 3.
+- **Verify:** file a printer request, assign and close it; announcement shows
+  read counts; supply stock decreases on checkout.
+
+### Phase 20 — Sales — فروش
+- **Goal:** leads to revenue, linked to clients and calls.
+- **Features:** J1–J7.
+- **Deliverables:** `sales.sql` (`sales_leads`, `sales_deals`,
+  `sales_targets`, `sales_products`); pipeline board; product catalog; targets
+  page; sales KPI panel.
+- **Capabilities:** `sales.view`, `sales.manage`.
+- **Depends on:** Phase 16, Phase 12 (clients), Phase 3.
+- **Verify:** move a lead through stages; deal values total per stage; link a
+  deal to a client and see its call history; monthly target progress updates.
+
 ---
 
 ## 6. Open questions & decisions needed — سوالات باز
@@ -359,13 +501,21 @@ the real files follow the `YYYYMMDDHHMMSS_name.sql` convention.
 4. **Email** — provider for optional email notifications (or keep in-app only).
 5. **Attachment limits** — storage quota per card/project.
 6. **Which teams get what** — initial `team_features` settings per team (e.g.
-   IT: sprints + git; sales: call_center; others: default).
+   IT: sprints + git; sales: call_center + sales; media: media + social;
+   others: default).
+7. **Social publishing** — manual publishing only (team posts outside the
+   dashboard) vs API auto-publish (Meta/Instagram, Telegram Bot)? Auto-publish
+   needs provider tokens and their review.
+8. **Media storage volume** — how much footage/photo storage is expected
+   (drives the storage tier and retention policy for H6).
+9. **Sales sensitivity** — may deals carry real financial amounts in the
+   dashboard, or should values stay labels until an ERP/CRM integration?
 
 ---
 
 ## 7. How to edit this file — راهنمای ویرایش
 
-- **Add a feature:** add a row in the matching §4 table (A–F) with its
+- **Add a feature:** add a row in the matching §4 table (A–K) with its
   capability keys, phase and priority.
 - **Reprioritize:** change the Priority cell (P0/P1/P2) or move the feature
   row's Phase number.
@@ -381,3 +531,4 @@ the real files follow the `YYYYMMDDHHMMSS_name.sql` convention.
 | --- | --- |
 | 2026-11-26 | Initial draft — پیش‌نویس اولیه |
 | 2026-11-26 | Added explicit priority system, deadlines, effort points and labels to the task list (A15–A18) and Phase 3 — افزودن اولویت، مهلت، امتیاز و برچسب به فهرست وظایف |
+| 2026-11-26 | Added department modules: social media (G), filming & photoshoots (H), internal company work (I), sales (J) plus cross-module enablers (K), new capabilities/toggles and Phases 16–20 — افزودن ماژول‌های سوشال مدیا، فیلم‌برداری و عکاسی، کارهای داخلی و فروش |
