@@ -1,7 +1,8 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { ChevronRightIcon } from "lucide-react";
 
 import {
@@ -62,43 +63,41 @@ export function NavMain({
   items: NavMainItem[];
   defaultTab?: string;
 }) {
-  const [active, setActive] = useState(defaultTab);
   const pathname = usePathname();
-  const { state, isMobile, setOpen } = useSidebar();
+  const searchParams = useSearchParams();
+  const { state, isMobile, setOpen, setOpenMobile } = useSidebar();
 
   // No hover tooltips inside the mobile sheet, and the sheet is always wide.
   const collapsed = state === "collapsed" && !isMobile;
 
-  useEffect(() => {
-    const syncHash = () => {
-      const cleaned = window.location.hash.replace(/^#/, "");
-      if (cleaned) {
-        setActive(cleaned);
-      }
-    };
+  // The home tab lives in `?tab=` and the sidebar follows the URL instead of
+  // keeping its own state, so it stays correct across refreshes.
+  const requestedTab = searchParams.get("tab") ?? defaultTab;
+  // Keep in sync with TABS in components/tabs/tab-content.tsx.
+  const currentTab = ["lunch", "services", "config"].includes(requestedTab)
+    ? requestedTab
+    : defaultTab;
 
-    syncHash();
-    window.addEventListener("hashchange", syncHash);
-    return () => window.removeEventListener("hashchange", syncHash);
-  }, []);
-
-  // Route links follow the pathname; tab links (hash) only count on the home page.
+  // Route links follow the pathname; tab links (`?tab=`) only count on the home page.
   const isSubItemActive = (subItem: NavMainSubItem) => {
     if (subItem.url && subItem.url.startsWith("/")) {
       const [target, hash] = subItem.url.split("#");
       // "/page#section" links are cross-links to a section, not a tab.
       return hash ? false : pathname === target;
     }
-    return pathname === "/" && active === subItem.slug;
+    return pathname === "/" && currentTab === subItem.slug;
   };
 
-  // Hash tabs must go through `/` when opened from an admin route, otherwise
-  // the browser only appends the hash to the current path.
+  // Tab links are real URLs (`/?tab=services`), so the selected tab survives
+  // a refresh. Lunch month params (`y`, `m`) are carried over when switching.
   const hrefFor = (subItem: NavMainSubItem) => {
     if (subItem.url) {
       return subItem.url;
     }
-    return pathname === "/" ? `#${subItem.slug}` : `/#${subItem.slug}`;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", subItem.slug);
+    const query = params.toString();
+    return query ? `/?${query}` : "/";
   };
 
   if (collapsed) {
@@ -120,15 +119,13 @@ export function NavMain({
                       primary ? `${item.title} — ${primary.title}` : item.title
                     }
                     onClick={() => {
-                      if (primary) {
-                        setActive(primary.slug);
-                      } else {
+                      if (!primary) {
                         setOpen(true);
                       }
                     }}
                     render={
                       href ? (
-                        <a href={href} aria-label={item.title} />
+                        <Link href={href} aria-label={item.title} />
                       ) : undefined
                     }
                   >
@@ -152,7 +149,9 @@ export function NavMain({
           item={item}
           isSubItemActive={isSubItemActive}
           hrefFor={hrefFor}
-          setActive={setActive}
+          onNavigate={() => {
+            if (isMobile) setOpenMobile(false);
+          }}
         />
       ))}
     </>
@@ -163,12 +162,12 @@ function NavGroup({
   item,
   isSubItemActive,
   hrefFor,
-  setActive,
+  onNavigate,
 }: {
   item: NavMainItem;
   isSubItemActive: (subItem: NavMainSubItem) => boolean;
   hrefFor: (subItem: NavMainSubItem) => string;
-  setActive: (slug: string) => void;
+  onNavigate: () => void;
 }) {
   const hasActiveChild = Boolean(item.items?.some(isSubItemActive));
   // Controlled on purpose: the active child changes after navigation, and an
@@ -204,10 +203,10 @@ function NavGroup({
                     <SidebarMenuSubButton
                       isActive={isCurrent}
                       render={
-                        <a
+                        <Link
                           href={href}
                           aria-current={isCurrent ? "page" : undefined}
-                          onClick={() => setActive(subItem.slug)}
+                          onClick={onNavigate}
                         />
                       }
                     >

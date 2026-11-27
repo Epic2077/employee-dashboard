@@ -8,8 +8,10 @@ import "server-only";
  *   XUI_BASE_URL      e.g. https://panel.example.com:2053
  *   XUI_USERNAME      panel user
  *   XUI_PASSWORD      panel password
- *   XUI_SUB_BASE_URL  optional public base for subscription links (falls back
- *                     to XUI_BASE_URL, e.g. https://sub.example.com)
+ *   XUI_SUB_BASE_URL  optional public base for subscription links, including
+ *                     the panel's sub path token (falls back to XUI_BASE_URL),
+ *                     e.g. https://sub.example.com:2096/abcd1234 — the final
+ *                     link is <base>/<subId> (no /sub/ segment)
  *
  * Endpoints follow the 3x-ui panel API (`/login`, `/panel/api/inbounds/...`).
  * Everything degrades to `configured: false` when the env is missing.
@@ -108,7 +110,7 @@ logXui("config", {
 
 if (SUB_BASE_RAW && !/^https?:\/\//i.test(SUB_BASE_RAW)) {
   console.warn(
-    `[xui] XUI_SUB_BASE_URL="${SUB_BASE_RAW}" is not an absolute URL; falling back to ${BASE}. Use e.g. https://sub.example.com`,
+    `[xui] XUI_SUB_BASE_URL="${SUB_BASE_RAW}" is not an absolute URL; falling back to ${BASE}. Use the full sub base including the sub path token, e.g. https://sub.example.com:2096/abcd1234`,
   );
 }
 
@@ -543,7 +545,7 @@ export function subscriptionUrl(
   override?: string | null,
 ): string {
   const base = (override || SUB_BASE || BASE).trim().replace(/\/+$/, "");
-  const url = `${base}/sub/${subId}`;
+  const url = `${base}/${subId}`;
   logXui("subscription-url", {
     base,
     source: override ? "config override" : "XUI_SUB_BASE_URL/XUI_BASE_URL",

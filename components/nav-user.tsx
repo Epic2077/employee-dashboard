@@ -42,7 +42,7 @@ export function NavUser({
   role?: string;
   teamManager?: boolean;
 }) {
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const initials = getInitials(user.name);
@@ -98,11 +98,21 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => router.push("/change-password")}>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
+                  router.push("/change-password");
+                }}
+              >
                 <KeyRoundIcon />
                 تغییر رمز عبور
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/")}>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
+                  router.push("/");
+                }}
+              >
                 <UserIcon />
                 داشبورد
               </DropdownMenuItem>

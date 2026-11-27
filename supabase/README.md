@@ -15,8 +15,10 @@ Copy `.env.example` to `.env.local` and fill in:
 - `XUI_BASE_URL` / `XUI_USERNAME` / `XUI_PASSWORD` — 3x-ui panel URL (e.g.
   `https://panel.example.com:2053`) and panel login, used only server-side to
   create/remove V2Ray clients. Without them the «کانفیگ» tab shows a setup notice.
-- `XUI_SUB_BASE_URL` — optional public base for subscription links
-  (`<base>/sub/<subId>`); falls back to `XUI_BASE_URL`.
+- `XUI_SUB_BASE_URL` — optional public base for subscription links, including
+  the panel's sub path token (e.g. `https://sub.example.com:2096/abcd1234`);
+  the final link is `<base>/<subId>` (no `/sub/` segment). Falls back to
+  `XUI_BASE_URL`.
 
 ## 2. Apply the migrations
 
@@ -89,13 +91,13 @@ password change on next login.
 
 ## 4. Roles
 
-| role       | default access                                                |
-| ---------- | ------------------------------------------------------------- |
-| `employee` | lunch, services, config and directory sections + own records   |
-| `manager`  | + team reports, team activity and team user list (`team`)      |
-| `ceo`      | + read-only reports and user list for the whole company       |
-| `admin`    | + `/admin/menu`, `/admin/services` and the day list           |
-| `owner`    | everything, including users and the access console            |
+| role       | default access                                               |
+| ---------- | ------------------------------------------------------------ |
+| `employee` | lunch, services, config and directory sections + own records |
+| `manager`  | + team reports, team activity and team user list (`team`)    |
+| `ceo`      | + read-only reports and user list for the whole company      |
+| `admin`    | + `/admin/menu`, `/admin/services` and the day list          |
+| `owner`    | everything, including users and the access console           |
 
 Authorization lives in `auth.users.raw_app_meta_data.role` (mirrored on
 `profiles.role`). Only the service role can change it, which is why role
@@ -127,15 +129,15 @@ and cannot be locked out.
 
 Default role matrix (owner is always `all`):
 
-| capability | employee | manager | ceo | admin |
-| --- | --- | --- | --- | --- |
-| `lunch.view` / `services.view` / `config.view` / `directory.view` | all | all | all | all |
-| `reports.lunch` / `reports.services` | none | team | all | all |
-| `team.activity` | none | team | all | all |
-| `users.view` | none | team | all | none |
-| `menu.manage` / `lunch.manage` / `services.manage` | none | none | none | all |
-| `digital.manage` | none | team | none | all |
-| `users.manage` / `permissions.manage` / `teams.manage` | none | none | none | none |
+| capability                                                        | employee | manager | ceo  | admin |
+| ----------------------------------------------------------------- | -------- | ------- | ---- | ----- |
+| `lunch.view` / `services.view` / `config.view` / `directory.view` | all      | all     | all  | all   |
+| `reports.lunch` / `reports.services`                              | none     | team    | all  | all   |
+| `team.activity`                                                   | none     | team    | all  | all   |
+| `users.view`                                                      | none     | team    | all  | none  |
+| `menu.manage` / `lunch.manage` / `services.manage`                | none     | none    | none | all   |
+| `digital.manage`                                                  | none     | team    | none | all   |
+| `users.manage` / `permissions.manage` / `teams.manage`            | none     | none    | none | none  |
 
 Category-aware capabilities (`lunch.view`, `menu.manage`, `reports.lunch`,
 `services.view`, `services.manage`, `reports.services`) accept an extra
@@ -143,11 +145,11 @@ Category-aware capabilities (`lunch.view`, `menu.manage`, `reports.lunch`,
 
 Management pages (owner only by default):
 
-| page | what it edits |
-| --- | --- |
-| `/admin/permissions` | role matrix + category registry |
-| `/admin/permissions/teams/[id]` | team settings, member grants, manager grants, per-category allow/deny |
-| `/admin/permissions/people/[id]` | person exceptions and the effective-access preview |
+| page                             | what it edits                                                         |
+| -------------------------------- | --------------------------------------------------------------------- |
+| `/admin/permissions`             | role matrix + category registry                                       |
+| `/admin/permissions/teams/[id]`  | team settings, member grants, manager grants, per-category allow/deny |
+| `/admin/permissions/people/[id]` | person exceptions and the effective-access preview                    |
 
 SQL helpers: `effective_scope(cap, category_id, user_id)`,
 `capability_scope(cap)`, `category_scope(cap, category_id)`,
@@ -276,7 +278,7 @@ service role server-side instead of relaxing the `profiles` RLS policies.
 ## 9. Digital configs (V2Ray)
 
 Employees get a V2Ray subscription on the company's 3x-ui panel; the tab is
-«کانفیگ» (`#config`). The panel client name is the employee's full name.
+«کانفیگ» (`?tab=config`). The panel client name is the employee's full name.
 
 - `v2ray_configs` — one row per panel client (`client_id`, `sub_id`, `email`,
   `inbound_ids`, `status`). Several rows per person when their quota allows.
@@ -291,7 +293,8 @@ Employees get a V2Ray subscription on the company's 3x-ui panel; the tab is
 - Node choice: full-scope staff (`digital.manage = all`, i.e. owner/admin) can
   pick specific inbounds or all of them; everyone else uses the configured
   defaults, falling back to every enabled inbound.
-- The subscription link is `<XUI_SUB_BASE_URL or XUI_BASE_URL>/sub/<subId>`.
+- The subscription link is `<XUI_SUB_BASE_URL or XUI_BASE_URL>/<subId>` (no
+  `/sub/` segment).
 - Writes always run server-side with the service role; RLS only exposes the
   rows the viewer may see (own rows or the `digital.manage` scope).
 - `/admin/config` lists configs in scope, creates/revokes them, edits quotas and
