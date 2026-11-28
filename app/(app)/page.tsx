@@ -62,6 +62,11 @@ async function LunchRoute({ searchParams }: { searchParams: SearchParams }) {
     return <NoSectionAccess />;
   }
 
+  const tabParam = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+  const initialTab: TabId = tabs.includes(tabParam as TabId)
+    ? (tabParam as TabId)
+    : tabs[0];
+
   const [lunch, services, config] = await Promise.all([
     canLunch ? getLunchMonth({ year, month }) : Promise.resolve(null),
     canServices ? getServicesToday() : Promise.resolve(null),
@@ -70,7 +75,7 @@ async function LunchRoute({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <TabContent
-      tabs={tabs}
+      initialTab={initialTab}
       lunch={lunch}
       services={services}
       config={config}
@@ -83,8 +88,8 @@ function NoSectionAccess() {
     <div className="mx-auto mt-16 max-w-md rounded-xl border border-dashed bg-muted/20 p-8 text-center">
       <h1 className="text-base font-semibold">بخشی برای نمایش وجود ندارد</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        دسترسی شما به بخش‌های کارکنان توسط مدیر سامانه تنظیم شده است. برای دریافت
-        دسترسی با مالک سامانه تماس بگیرید.
+        دسترسی شما به بخش‌های کارکنان توسط مدیر سامانه تنظیم شده است. برای
+        دریافت دسترسی با مالک سامانه تماس بگیرید.
       </p>
     </div>
   );

@@ -101,7 +101,7 @@ export function ConfigPanel({ data }: { data: DigitalTabData }) {
           {data.configs.map((config) => (
             <div
               key={config.id}
-              className="rounded-xl border bg-card p-4 space-y-3"
+              className="min-w-0 rounded-xl border bg-card p-4 space-y-3"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -135,7 +135,7 @@ export function ConfigPanel({ data }: { data: DigitalTabData }) {
                 >
                   {config.subscriptionUrl}
                 </p>
-                <div className="mt-2 flex items-center justify-between">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5">
                   <span className="text-[10px] text-muted-foreground">
                     {config.inboundIds.length} نود
                     {config.trafficLimitGb

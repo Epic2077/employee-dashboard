@@ -173,7 +173,7 @@ async function ConfigView() {
                   name="sub_base_url"
                   dir="ltr"
                   defaultValue={data.settings.subBaseUrl ?? ""}
-                  placeholder="https://sub.example.com"
+                  placeholder="https://sub.example.com:2096/abcd1234"
                   className="text-left"
                 />
               </label>

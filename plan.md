@@ -138,7 +138,7 @@ unit_price_irt)` with one row per employee/service/day,
     `can_view_user(user_id, 'reports.services')`,
   - a coffee row seeded from the old `app_settings` values, the old
     `coffee_orders` rows migrated and the table dropped.
-- Employees use the «سرویس‌ها» tab (hash `#services`) instead of a coffee-only
+- Employees use the «سرویس‌ها» tab (`?tab=services`) instead of a coffee-only
   tab: one card per active service with a ± stepper, daily cap, unit price,
   today's cost and monthly totals.
 - `/admin/services` shows monthly totals per service, daily and per-employee
@@ -209,7 +209,7 @@ unit_price_irt)` with one row per employee/service/day,
 
 - Migration `*_layered_access_and_categories.sql` replaces `role_permissions`
   with `access_grants(subject_type ∈ role/team/team_manager/user, capability,
-  category_id, mode, scope)` plus the `access_capabilities` catalogue and the
+category_id, mode, scope)` plus the `access_capabilities` catalogue and the
   shared `access_categories` registry. Existing role rows are copied before the
   old table is dropped.
 - Resolution: role → team → team-manager → person. Grants widen (widest wins),
@@ -257,7 +257,7 @@ unit_price_irt)` with one row per employee/service/day,
   same uuid + subId on every chosen inbound), rolls back panel clients if any
   step fails, and enforces quotas: default 1 per employee, managers raise it up
   to `manager_quota_cap`, owner unlimited.
-- New «کانفیگ» tab (`#config`) lists the user's subscriptions with copy/open
+- New «کانفیگ» tab (`?tab=config`) lists the user's subscriptions with copy/open
   links and, when self-service is on and quota allows, a create button.
 - `/admin/config` (digital.manage) shows configs in scope with revoke, node
   pickers (owner/admin can choose any or all inbounds), the panel defaults form
