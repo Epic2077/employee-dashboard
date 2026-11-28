@@ -167,7 +167,8 @@ async function ConfigView() {
               </label>
               <label className="space-y-1 text-xs">
                 <span className="text-muted-foreground">
-                  آدرس پایه لینک اشتراک (اختیاری)
+                  آدرس پایه لینک اشتراک (اختیاری — خالی بماند تا خودکار از پنل
+                  خوانده شود)
                 </span>
                 <Input
                   name="sub_base_url"

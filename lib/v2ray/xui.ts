@@ -8,10 +8,12 @@ import "server-only";
  *   XUI_BASE_URL      e.g. https://panel.example.com:2053
  *   XUI_USERNAME      panel user
  *   XUI_PASSWORD      panel password
- *   XUI_SUB_BASE_URL  optional public base for subscription links, including
- *                     the panel's sub path token (falls back to XUI_BASE_URL),
- *                     e.g. https://sub.example.com:2096/abcd1234 — the final
- *                     link is <base>/<subId> (no /sub/ segment)
+ *   XUI_SUB_BASE_URL  optional absolute override for subscription links
+ *                     (e.g. https://sub.example.com:2096/abcd1234). When
+ *                     unset, the sub address is derived from the panel's own
+ *                     settings API (subDomain/subPort/subPath), so the final
+ *                     link is <sub-base>/<subId> — exactly what the panel
+ *                     itself serves (no /sub/ segment assumed).
  *
  * Endpoints follow the 3x-ui panel API (`/login`, `/panel/api/inbounds/...`).
  * Everything degrades to `configured: false` when the env is missing.
@@ -110,7 +112,7 @@ logXui("config", {
 
 if (SUB_BASE_RAW && !/^https?:\/\//i.test(SUB_BASE_RAW)) {
   console.warn(
-    `[xui] XUI_SUB_BASE_URL="${SUB_BASE_RAW}" is not an absolute URL; falling back to ${BASE}. Use the full sub base including the sub path token, e.g. https://sub.example.com:2096/abcd1234`,
+    `[xui] XUI_SUB_BASE_URL="${SUB_BASE_RAW}" is not an absolute URL and is ignored. The subscription address is auto-detected from the panel's settings (subDomain/subPort/subPath). Set a full URL like https://sub.example.com:2096/abcd1234 to override.`,
   );
 }
 
@@ -540,17 +542,121 @@ export async function removeClientByEmail(
   }
 }
 
-export function subscriptionUrl(
+/**
+ * Panel subscription settings (subset of `POST /panel/api/setting/all`).
+ * The panel serves subscription links on a dedicated address that usually
+ * differs from the panel API base: separate port (default 2096) and a random
+ * sub path token, e.g. https://host:2096/pdmo28lo52j1sl9o/<subId>.
+ */
+type XuiSubSettings = {
+  subEnable?: boolean;
+  subDomain?: string;
+  subPort?: number | string;
+  subPath?: string;
+  subURI?: string;
+  subTLS?: boolean;
+};
+
+const PANEL_SUB_BASE_TTL_MS = 10 * 60 * 1000;
+const PANEL_SUB_BASE_ERROR_TTL_MS = 60 * 1000;
+let panelSubBaseCache: { value: string | null; at: number } | null = null;
+
+/**
+ * Builds the panel's subscription base the same way 3x-ui does: either the
+ * configured `subURI`, or `<scheme>://<subDomain|panel host>:<subPort><subPath>`.
+ * Returns null when the panel cannot tell us (then callers fall back).
+ */
+async function fetchPanelSubBase(): Promise<string | null> {
+  if (!isXuiConfigured()) return null;
+
+  const cached = panelSubBaseCache;
+  if (
+    cached &&
+    Date.now() - cached.at <
+      (cached.value ? PANEL_SUB_BASE_TTL_MS : PANEL_SUB_BASE_ERROR_TTL_MS)
+  ) {
+    return cached.value;
+  }
+
+  try {
+    const result = await request<XuiSubSettings>("/panel/api/setting/all", {
+      method: "POST",
+      body: "{}",
+      headers: { "content-type": "application/json" },
+    });
+
+    if (!result.success) {
+      throw new Error(
+        `xui_settings_failed: ${result.msg || "no message"} (POST ${BASE}/panel/api/setting/all)`,
+      );
+    }
+
+    const settings = result.obj ?? {};
+    const subURI = String(settings.subURI ?? "").trim();
+    const host =
+      String(settings.subDomain ?? "").trim() || new URL(BASE).hostname;
+    const port = Number(settings.subPort ?? 0);
+    const portPart = port || new URL(BASE).port;
+    const scheme =
+      typeof settings.subTLS === "boolean"
+        ? settings.subTLS
+          ? "https"
+          : "http"
+        : new URL(BASE).protocol.replace(/:$/, "");
+    const authority = `${scheme}://${host}${portPart ? `:${portPart}` : ""}`;
+
+    let base: string;
+    if (subURI) {
+      base = /^https?:\/\//i.test(subURI)
+        ? subURI
+        : `${authority}${subURI.startsWith("/") ? subURI : `/${subURI}`}`;
+    } else {
+      const subPath = String(settings.subPath ?? "").replace(/^\/+|\/+$/g, "");
+      base = `${authority}${subPath ? `/${subPath}` : ""}`;
+    }
+    base = base.replace(/\/+$/, "");
+
+    logXui("sub-settings", {
+      enable: settings.subEnable,
+      domain: String(settings.subDomain ?? "") || "<panel host>",
+      port: String(port || "<panel port>"),
+      path: String(settings.subPath ?? ""),
+      uri: subURI || "<none>",
+      base,
+    });
+
+    panelSubBaseCache = { value: base, at: Date.now() };
+    return base;
+  } catch (error) {
+    logXui("sub-settings:failed", {
+      error: error instanceof Error ? error.message : error,
+    });
+    panelSubBaseCache = { value: null, at: Date.now() };
+    return null;
+  }
+}
+
+/** Which address the subscription link is built on. */
+async function resolveSubBase(
+  override?: string | null,
+): Promise<{ base: string; source: string }> {
+  const explicit = (override ?? "").trim().replace(/\/+$/, "");
+  if (explicit) return { base: explicit, source: "config override" };
+  if (/^https?:\/\//i.test(SUB_BASE_RAW)) {
+    return { base: SUB_BASE, source: "XUI_SUB_BASE_URL" };
+  }
+  const panelBase = await fetchPanelSubBase();
+  if (panelBase) return { base: panelBase, source: "panel settings" };
+  return { base: SUB_BASE, source: "XUI_BASE_URL fallback" };
+}
+
+export async function subscriptionUrl(
   subId: string,
   override?: string | null,
-): string {
-  const base = (override || SUB_BASE || BASE).trim().replace(/\/+$/, "");
+): Promise<string> {
+  const { base, source } = await resolveSubBase(override);
   const url = `${base}/${subId}`;
-  logXui("subscription-url", {
-    base,
-    source: override ? "config override" : "XUI_SUB_BASE_URL/XUI_BASE_URL",
-    url,
-  });
+  logXui("subscription-url", { base, source, url });
   return url;
 }
 

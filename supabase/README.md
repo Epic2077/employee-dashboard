@@ -15,10 +15,10 @@ Copy `.env.example` to `.env.local` and fill in:
 - `XUI_BASE_URL` / `XUI_USERNAME` / `XUI_PASSWORD` — 3x-ui panel URL (e.g.
   `https://panel.example.com:2053`) and panel login, used only server-side to
   create/remove V2Ray clients. Without them the «کانفیگ» tab shows a setup notice.
-- `XUI_SUB_BASE_URL` — optional public base for subscription links, including
-  the panel's sub path token (e.g. `https://sub.example.com:2096/abcd1234`);
-  the final link is `<base>/<subId>` (no `/sub/` segment). Falls back to
-  `XUI_BASE_URL`.
+- `XUI_SUB_BASE_URL` — optional absolute override for subscription links. When
+  unset, the sub address is auto-detected from the panel's settings
+  (subDomain/subPort/subPath, e.g. `https://sub.example.com:2096/abcd1234`);
+  the final link is `<sub-base>/<subId>` (no `/sub/` segment).
 
 ## 2. Apply the migrations
 
@@ -293,8 +293,11 @@ Employees get a V2Ray subscription on the company's 3x-ui panel; the tab is
 - Node choice: full-scope staff (`digital.manage = all`, i.e. owner/admin) can
   pick specific inbounds or all of them; everyone else uses the configured
   defaults, falling back to every enabled inbound.
-- The subscription link is `<XUI_SUB_BASE_URL or XUI_BASE_URL>/<subId>` (no
-  `/sub/` segment).
+- The subscription link is `<sub-base>/<subId>` where `<sub-base>` is, in
+  order: the `digital_settings.sub_base_url` override, an absolute
+  `XUI_SUB_BASE_URL`, or the address auto-detected from the panel's settings
+  API (`subDomain`/`subPort`/`subPath` — e.g.
+  `https://panel-host:2096/random-token`). No `/sub/` segment is assumed.
 - Writes always run server-side with the service role; RLS only exposes the
   rows the viewer may see (own rows or the `digital.manage` scope).
 - `/admin/config` lists configs in scope, creates/revokes them, edits quotas and

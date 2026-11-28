@@ -32,7 +32,7 @@ const DEFAULT_SETTINGS: DigitalSettingsView = {
 
 const DEFAULT_QUOTA = 1;
 
-function configView(
+async function configView(
   row: {
     id: string;
     label: string;
@@ -48,12 +48,12 @@ function configView(
   },
   subBaseUrl: string | null,
   owner?: { name: string; department: string | null },
-): DigitalConfigView {
+): Promise<DigitalConfigView> {
   return {
     id: row.id,
     label: row.label,
     email: row.email,
-    subscriptionUrl: subscriptionUrl(row.sub_id, subBaseUrl),
+    subscriptionUrl: await subscriptionUrl(row.sub_id, subBaseUrl),
     inboundIds: row.inbound_ids ?? [],
     status: row.status,
     trafficLimitGb: row.traffic_limit_gb,
@@ -153,8 +153,10 @@ export async function getMyDigitalTab(): Promise<DigitalTabData> {
     return empty;
   }
 
-  const configs = (configsResult.data ?? []).map((row) =>
-    configView(row, settings.subBaseUrl),
+  const configs = await Promise.all(
+    (configsResult.data ?? []).map((row) =>
+      configView(row, settings.subBaseUrl),
+    ),
   );
   const quota = quotaFor(access.role, quotaResult.data?.max_configs);
   const used = configs.length;
@@ -241,13 +243,15 @@ export async function getDigitalAdminData(): Promise<DigitalAdminData> {
     }))
     .sort((a, b) => b.used - a.used || a.name.localeCompare(b.name, "fa"));
 
-  const configs = configRows.map((row) => {
-    const owner = profileById.get(row.user_id);
-    return configView(row, settings.subBaseUrl, {
-      name: owner?.full_name ?? "کاربر خارج از دسترسی",
-      department: owner?.department ?? null,
-    });
-  });
+  const configs = await Promise.all(
+    configRows.map((row) => {
+      const owner = profileById.get(row.user_id);
+      return configView(row, settings.subBaseUrl, {
+        name: owner?.full_name ?? "کاربر خارج از دسترسی",
+        department: owner?.department ?? null,
+      });
+    }),
+  );
 
   let inbounds: DigitalAdminData["inbounds"] = [];
   let inboundsError: string | null = null;
